@@ -2414,6 +2414,9 @@ bool CXXNameMangler::mangleUnresolvedTypeOrSimpleId(QualType Ty,
   case Type::ExtVector:
   case Type::ConstantMatrix:
   case Type::DependentSizedMatrix:
+#ifdef SCALABLE_MATRIX
+  case Type::ScalableMatrix:
+#endif
   case Type::FunctionProto:
   case Type::FunctionNoProto:
   case Type::Paren:
@@ -3308,6 +3311,28 @@ void CXXNameMangler::mangleType(const BuiltinType *T) {
     Out << TI->getFloat128Mangling();
     break;
   }
+#ifdef FP8_DATATYPES
+  case BuiltinType::BF8: {
+    const TargetInfo *TI =
+        ((getASTContext().getLangOpts().OpenMP &&
+          getASTContext().getLangOpts().OpenMPIsTargetDevice) ||
+         getASTContext().getLangOpts().SYCLIsDevice)
+            ? getASTContext().getAuxTargetInfo()
+            : &getASTContext().getTargetInfo();
+    Out << TI->getBF8Mangling();
+    break;
+  }
+  case BuiltinType::HF8: {
+    const TargetInfo *TI =
+        ((getASTContext().getLangOpts().OpenMP &&
+          getASTContext().getLangOpts().OpenMPIsTargetDevice) ||
+         getASTContext().getLangOpts().SYCLIsDevice)
+            ? getASTContext().getAuxTargetInfo()
+            : &getASTContext().getTargetInfo();
+    Out << TI->getHF8Mangling();
+    break;
+  }
+#endif
   case BuiltinType::BFloat16: {
     const TargetInfo *TI =
         ((getASTContext().getLangOpts().OpenMP &&
@@ -3414,6 +3439,14 @@ void CXXNameMangler::mangleType(const BuiltinType *T) {
     Out << 'u' << type_name.size() << type_name;                               \
     break;
 #include "clang/Basic/RISCVVTypes.def"
+#ifdef SCALABLE_MATRIX
+#define SMAT_BASE(Name, Id, SingletonId)                                       \
+  case BuiltinType::Id:                                                        \
+    type_name = Name;                                                          \
+    Out << 'u' << type_name.size() << type_name;                               \
+    break;
+#include "clang/Basic/ScalableMatrixTypes.def"
+#endif
 #define WASM_REF_TYPE(InternalName, MangledName, Id, SingletonId, AS)          \
   case BuiltinType::Id:                                                        \
     type_name = MangledName;                                                   \
@@ -4180,6 +4213,30 @@ void CXXNameMangler::mangleType(const DependentSizedMatrixType *T) {
   mangleType(T->getElementType());
   Out << "E";
 }
+
+#ifdef SCALABLE_MATRIX
+void CXXNameMangler::mangleType(const ScalableMatrixType *T) {
+  // Mangle matrix types as a vendor extended type:
+  // u<Len>scalable_matrix_typeI<rows><columns><scalable><element type>E
+  StringRef VendorQualifier = "scalable_matrix_type";
+  Out << "u" << VendorQualifier.size() << VendorQualifier;
+
+  Out << "I";
+  auto &ASTCtx = getASTContext();
+  unsigned BitWidth = ASTCtx.getTypeSize(ASTCtx.getSizeType());
+  llvm::APSInt Rows(BitWidth);
+  Rows = T->getNumRows();
+  mangleIntegerLiteral(ASTCtx.getSizeType(), Rows);
+  llvm::APSInt Columns(BitWidth);
+  Columns = T->getNumColumns();
+  mangleIntegerLiteral(ASTCtx.getSizeType(), Columns);
+  llvm::APSInt Scalable(BitWidth);
+  Scalable = T->getScalable() ? 1 : 0;
+  mangleIntegerLiteral(ASTCtx.getSizeType(), Scalable);
+  mangleType(T->getElementType());
+  Out << "E";
+}
+#endif
 
 void CXXNameMangler::mangleType(const DependentAddressSpaceType *T) {
   SplitQualType split = T->getPointeeType().split();

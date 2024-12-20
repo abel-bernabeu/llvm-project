@@ -58,6 +58,17 @@ EVT EVT::getExtendedVectorVT(LLVMContext &Context, EVT VT, ElementCount EC) {
   return ResultVT;
 }
 
+#ifdef SCALABLE_MATRIX
+EVT EVT::getExtendedMatrixVT(LLVMContext &Context, EVT VT, unsigned NumElements,
+                             unsigned NumElements2, bool IsScalable) {
+  EVT ResultVT;
+  ResultVT.LLVMTy = ScalableMatrixType::get(
+      VT.getTypeForEVT(Context), NumElements, NumElements2, IsScalable);
+  assert(ResultVT.isExtended() && "Type is not extended!");
+  return ResultVT;
+}
+#endif
+
 bool EVT::isExtendedFloatingPoint() const {
   assert(isExtended() && "Type is not extended!");
   return LLVMTy->isFPOrFPVectorTy();
@@ -77,6 +88,13 @@ bool EVT::isExtendedVector() const {
   assert(isExtended() && "Type is not extended!");
   return LLVMTy->isVectorTy();
 }
+
+#ifdef SCALABLE_MATRIX
+bool EVT::isExtendedMatrix() const {
+  assert(isExtended() && "Type is not extended!");
+  return LLVMTy->isMatrixTy();
+}
+#endif
 
 bool EVT::isExtended16BitVector() const {
   return isExtendedVector() &&
@@ -126,10 +144,23 @@ bool EVT::isExtendedScalableVector() const {
   return isExtendedVector() && isa<ScalableVectorType>(LLVMTy);
 }
 
+#ifdef SCALABLE_MATRIX
+bool EVT::isExtendedScalableMatrix() const {
+  return isExtendedMatrix() && isa<ScalableMatrixType>(LLVMTy);
+}
+#endif
+
 EVT EVT::getExtendedVectorElementType() const {
   assert(isExtended() && "Type is not extended!");
   return EVT::getEVT(cast<VectorType>(LLVMTy)->getElementType());
 }
+
+#ifdef SCALABLE_MATRIX
+EVT EVT::getExtendedMatrixElementType() const {
+  assert(isExtended() && "Type is not extended!");
+  return EVT::getEVT(cast<ScalableMatrixType>(LLVMTy)->getElementType());
+}
+#endif
 
 unsigned EVT::getExtendedVectorNumElements() const {
   assert(isExtended() && "Type is not extended!");
@@ -161,6 +192,19 @@ TypeSize EVT::getExtendedSizeInBits() const {
 std::string EVT::getEVTString() const {
   switch (V.SimpleTy) {
   default:
+#ifdef SCALABLE_MATRIX
+    if (isMatrix()) {
+      std::string result;
+      if (isScalableMatrix())
+        result = "mx" + utostr(getMatrixNumElems()) + "xnx" +
+                 utostr(getMatrixNumElems2()) + "x" +
+                 getMatrixElementType().getEVTString();
+      else
+        result = "m" + utostr(getMatrixNumElems()) + "x" +
+                 getMatrixElementType().getEVTString();
+      return result;
+    }
+#endif
     if (isVector())
       return (isScalableVector() ? "nxv" : "v") +
              utostr(getVectorElementCount().getKnownMinValue()) +
@@ -170,6 +214,12 @@ std::string EVT::getEVTString() const {
     if (isFloatingPoint())
       return "f" + utostr(getSizeInBits());
     llvm_unreachable("Invalid EVT!");
+#ifdef FP8_DATATYPES
+  case MVT::bf8:
+    return "bf8";
+  case MVT::hf8:
+    return "hf8";
+#endif
   case MVT::bf16:      return "bf16";
   case MVT::ppcf128:   return "ppcf128";
   case MVT::isVoid:    return "isVoid";
@@ -216,6 +266,10 @@ Type *EVT::getTypeForEVT(LLVMContext &Context) const {
   case MVT::i128:    return IntegerType::get(Context, 128);
   case MVT::f16:     return Type::getHalfTy(Context);
   case MVT::bf16:    return Type::getBFloatTy(Context);
+#ifdef FP8_DATATYPES
+  case MVT::bf8:     return Type::getBF8Ty(Context);
+  case MVT::hf8:     return Type::getHF8Ty(Context);
+#endif
   case MVT::f32:     return Type::getFloatTy(Context);
   case MVT::f64:     return Type::getDoubleTy(Context);
   case MVT::f80:     return Type::getX86_FP80Ty(Context);
@@ -570,6 +624,270 @@ Type *EVT::getTypeForEVT(LLVMContext &Context) const {
     return ScalableVectorType::get(Type::getDoubleTy(Context), 4);
   case MVT::nxv8f64:
     return ScalableVectorType::get(Type::getDoubleTy(Context), 8);
+#ifdef FP8_DATATYPES
+  case MVT::nxv1bf8:
+    return ScalableVectorType::get(Type::getBF8Ty(Context), 1);
+  case MVT::nxv2bf8:
+    return ScalableVectorType::get(Type::getBF8Ty(Context), 2);
+  case MVT::nxv4bf8:
+    return ScalableVectorType::get(Type::getBF8Ty(Context), 4);
+  case MVT::nxv8bf8:
+    return ScalableVectorType::get(Type::getBF8Ty(Context), 8);
+  case MVT::nxv16bf8:
+    return ScalableVectorType::get(Type::getBF8Ty(Context), 16);
+  case MVT::nxv32bf8:
+    return ScalableVectorType::get(Type::getBF8Ty(Context), 32);
+  case MVT::nxv64bf8:
+    return ScalableVectorType::get(Type::getBF8Ty(Context), 64);
+  case MVT::nxv1hf8:
+    return ScalableVectorType::get(Type::getHF8Ty(Context), 1);
+  case MVT::nxv2hf8:
+    return ScalableVectorType::get(Type::getHF8Ty(Context), 2);
+  case MVT::nxv4hf8:
+    return ScalableVectorType::get(Type::getHF8Ty(Context), 4);
+  case MVT::nxv8hf8:
+    return ScalableVectorType::get(Type::getHF8Ty(Context), 8);
+  case MVT::nxv16hf8:
+    return ScalableVectorType::get(Type::getHF8Ty(Context), 16);
+  case MVT::nxv32hf8:
+    return ScalableVectorType::get(Type::getHF8Ty(Context), 32);
+  case MVT::nxv64hf8:
+    return ScalableVectorType::get(Type::getHF8Ty(Context), 64);
+#endif
+#ifdef SCALABLE_MATRIX
+  case MVT::m1x1xi8:
+    return ScalableMatrixType::get(Type::getInt8Ty(Context), 1, 1, false);
+  case MVT::m1x2xi8:
+    return ScalableMatrixType::get(Type::getInt8Ty(Context), 1, 2, false);
+  case MVT::m1x4xi8:
+    return ScalableMatrixType::get(Type::getInt8Ty(Context), 1, 4, false);
+  case MVT::m1x8xi8:
+    return ScalableMatrixType::get(Type::getInt8Ty(Context), 1, 8, false);
+  case MVT::m1x16xi8:
+    return ScalableMatrixType::get(Type::getInt8Ty(Context), 1, 16, false);
+  case MVT::m1x32xi8:
+    return ScalableMatrixType::get(Type::getInt8Ty(Context), 1, 32, false);
+  case MVT::m1x64xi8:
+    return ScalableMatrixType::get(Type::getInt8Ty(Context), 1, 64, false);
+  case MVT::m1x1xi16:
+    return ScalableMatrixType::get(Type::getInt16Ty(Context), 1, 1, false);
+  case MVT::m1x2xi16:
+    return ScalableMatrixType::get(Type::getInt16Ty(Context), 1, 2, false);
+  case MVT::m1x4xi16:
+    return ScalableMatrixType::get(Type::getInt16Ty(Context), 1, 4, false);
+  case MVT::m1x8xi16:
+    return ScalableMatrixType::get(Type::getInt16Ty(Context), 1, 8, false);
+  case MVT::m1x16xi16:
+    return ScalableMatrixType::get(Type::getInt16Ty(Context), 1, 16, false);
+  case MVT::m1x32xi16:
+    return ScalableMatrixType::get(Type::getInt16Ty(Context), 1, 32, false);
+  case MVT::m1x1xi32:
+    return ScalableMatrixType::get(Type::getInt32Ty(Context), 1, 1, false);
+  case MVT::m1x2xi32:
+    return ScalableMatrixType::get(Type::getInt32Ty(Context), 1, 2, false);
+  case MVT::m1x4xi32:
+    return ScalableMatrixType::get(Type::getInt32Ty(Context), 1, 4, false);
+  case MVT::m1x8xi32:
+    return ScalableMatrixType::get(Type::getInt32Ty(Context), 1, 8, false);
+  case MVT::m1x16xi32:
+    return ScalableMatrixType::get(Type::getInt32Ty(Context), 1, 16, false);
+  case MVT::m1x1xi64:
+    return ScalableMatrixType::get(Type::getInt64Ty(Context), 1, 1, false);
+  case MVT::m1x2xi64:
+    return ScalableMatrixType::get(Type::getInt64Ty(Context), 1, 2, false);
+  case MVT::m1x4xi64:
+    return ScalableMatrixType::get(Type::getInt64Ty(Context), 1, 4, false);
+  case MVT::m1x8xi64:
+    return ScalableMatrixType::get(Type::getInt64Ty(Context), 1, 8, false);
+#ifdef FP8_DATATYPES
+  case MVT::m1x1xbf8:
+    return ScalableMatrixType::get(Type::getBF8Ty(Context), 1, 1, false);
+  case MVT::m1x2xbf8:
+    return ScalableMatrixType::get(Type::getBF8Ty(Context), 1, 2, false);
+  case MVT::m1x4xbf8:
+    return ScalableMatrixType::get(Type::getBF8Ty(Context), 1, 4, false);
+  case MVT::m1x8xbf8:
+    return ScalableMatrixType::get(Type::getBF8Ty(Context), 1, 8, false);
+  case MVT::m1x16xbf8:
+    return ScalableMatrixType::get(Type::getBF8Ty(Context), 1, 16, false);
+  case MVT::m1x32xbf8:
+    return ScalableMatrixType::get(Type::getBF8Ty(Context), 1, 32, false);
+  case MVT::m1x64xbf8:
+    return ScalableMatrixType::get(Type::getBF8Ty(Context), 1, 64, false);
+  case MVT::m1x1xhf8:
+    return ScalableMatrixType::get(Type::getHF8Ty(Context), 1, 1, false);
+  case MVT::m1x2xhf8:
+    return ScalableMatrixType::get(Type::getHF8Ty(Context), 1, 2, false);
+  case MVT::m1x4xhf8:
+    return ScalableMatrixType::get(Type::getHF8Ty(Context), 1, 4, false);
+  case MVT::m1x8xhf8:
+    return ScalableMatrixType::get(Type::getHF8Ty(Context), 1, 8, false);
+  case MVT::m1x16xhf8:
+    return ScalableMatrixType::get(Type::getHF8Ty(Context), 1, 16, false);
+  case MVT::m1x32xhf8:
+    return ScalableMatrixType::get(Type::getHF8Ty(Context), 1, 32, false);
+  case MVT::m1x64xhf8:
+    return ScalableMatrixType::get(Type::getHF8Ty(Context), 1, 64, false);
+#endif
+  case MVT::m1x1xbf16:
+    return ScalableMatrixType::get(Type::getBFloatTy(Context), 1, 1, false);
+  case MVT::m1x2xbf16:
+    return ScalableMatrixType::get(Type::getBFloatTy(Context), 1, 2, false);
+  case MVT::m1x4xbf16:
+    return ScalableMatrixType::get(Type::getBFloatTy(Context), 1, 4, false);
+  case MVT::m1x8xbf16:
+    return ScalableMatrixType::get(Type::getBFloatTy(Context), 1, 8, false);
+  case MVT::m1x16xbf16:
+    return ScalableMatrixType::get(Type::getBFloatTy(Context), 1, 16, false);
+  case MVT::m1x32xbf16:
+    return ScalableMatrixType::get(Type::getBFloatTy(Context), 1, 32, false);
+  case MVT::m1x1xf16:
+    return ScalableMatrixType::get(Type::getHalfTy(Context), 1, 1, false);
+  case MVT::m1x2xf16:
+    return ScalableMatrixType::get(Type::getHalfTy(Context), 1, 2, false);
+  case MVT::m1x4xf16:
+    return ScalableMatrixType::get(Type::getHalfTy(Context), 1, 4, false);
+  case MVT::m1x8xf16:
+    return ScalableMatrixType::get(Type::getHalfTy(Context), 1, 8, false);
+  case MVT::m1x16xf16:
+    return ScalableMatrixType::get(Type::getHalfTy(Context), 1, 16, false);
+  case MVT::m1x32xf16:
+    return ScalableMatrixType::get(Type::getHalfTy(Context), 1, 32, false);
+  case MVT::m1x1xf32:
+    return ScalableMatrixType::get(Type::getFloatTy(Context), 1, 1, false);
+  case MVT::m1x2xf32:
+    return ScalableMatrixType::get(Type::getFloatTy(Context), 1, 2, false);
+  case MVT::m1x4xf32:
+    return ScalableMatrixType::get(Type::getFloatTy(Context), 1, 4, false);
+  case MVT::m1x8xf32:
+    return ScalableMatrixType::get(Type::getFloatTy(Context), 1, 8, false);
+  case MVT::m1x16xf32:
+    return ScalableMatrixType::get(Type::getFloatTy(Context), 1, 16, false);
+  case MVT::m1x1xf64:
+    return ScalableMatrixType::get(Type::getDoubleTy(Context), 1, 1, false);
+  case MVT::m1x2xf64:
+    return ScalableMatrixType::get(Type::getDoubleTy(Context), 1, 2, false);
+  case MVT::m1x4xf64:
+    return ScalableMatrixType::get(Type::getDoubleTy(Context), 1, 4, false);
+  case MVT::m1x8xf64:
+    return ScalableMatrixType::get(Type::getDoubleTy(Context), 1, 8, false);
+  case MVT::mx1xnx1xi8:
+    return ScalableMatrixType::get(Type::getInt8Ty(Context), 1, 1, true);
+  case MVT::mx1xnx2xi8:
+    return ScalableMatrixType::get(Type::getInt8Ty(Context), 1, 2, true);
+  case MVT::mx1xnx4xi8:
+    return ScalableMatrixType::get(Type::getInt8Ty(Context), 1, 4, true);
+  case MVT::mx1xnx8xi8:
+    return ScalableMatrixType::get(Type::getInt8Ty(Context), 1, 8, true);
+  case MVT::mx1xnx16xi8:
+    return ScalableMatrixType::get(Type::getInt8Ty(Context), 1, 16, true);
+  case MVT::mx1xnx32xi8:
+    return ScalableMatrixType::get(Type::getInt8Ty(Context), 1, 32, true);
+  case MVT::mx1xnx64xi8:
+    return ScalableMatrixType::get(Type::getInt8Ty(Context), 1, 64, true);
+  case MVT::mx1xnx1xi16:
+    return ScalableMatrixType::get(Type::getInt16Ty(Context), 1, 1, true);
+  case MVT::mx1xnx2xi16:
+    return ScalableMatrixType::get(Type::getInt16Ty(Context), 1, 2, true);
+  case MVT::mx1xnx4xi16:
+    return ScalableMatrixType::get(Type::getInt16Ty(Context), 1, 4, true);
+  case MVT::mx1xnx8xi16:
+    return ScalableMatrixType::get(Type::getInt16Ty(Context), 1, 8, true);
+  case MVT::mx1xnx16xi16:
+    return ScalableMatrixType::get(Type::getInt16Ty(Context), 1, 16, true);
+  case MVT::mx1xnx32xi16:
+    return ScalableMatrixType::get(Type::getInt16Ty(Context), 1, 32, true);
+  case MVT::mx1xnx1xi32:
+    return ScalableMatrixType::get(Type::getInt32Ty(Context), 1, 1, true);
+  case MVT::mx1xnx2xi32:
+    return ScalableMatrixType::get(Type::getInt32Ty(Context), 1, 2, true);
+  case MVT::mx1xnx4xi32:
+    return ScalableMatrixType::get(Type::getInt32Ty(Context), 1, 4, true);
+  case MVT::mx1xnx8xi32:
+    return ScalableMatrixType::get(Type::getInt32Ty(Context), 1, 8, true);
+  case MVT::mx1xnx16xi32:
+    return ScalableMatrixType::get(Type::getInt32Ty(Context), 1, 16, true);
+  case MVT::mx1xnx1xi64:
+    return ScalableMatrixType::get(Type::getInt64Ty(Context), 1, 1, true);
+  case MVT::mx1xnx2xi64:
+    return ScalableMatrixType::get(Type::getInt64Ty(Context), 1, 2, true);
+  case MVT::mx1xnx4xi64:
+    return ScalableMatrixType::get(Type::getInt64Ty(Context), 1, 4, true);
+  case MVT::mx1xnx8xi64:
+    return ScalableMatrixType::get(Type::getInt64Ty(Context), 1, 8, true);
+#ifdef FP8_DATATYPES
+  case MVT::mx1xnx1xbf8:
+    return ScalableMatrixType::get(Type::getBF8Ty(Context), 1, 1, true);
+  case MVT::mx1xnx2xbf8:
+    return ScalableMatrixType::get(Type::getBF8Ty(Context), 1, 2, true);
+  case MVT::mx1xnx4xbf8:
+    return ScalableMatrixType::get(Type::getBF8Ty(Context), 1, 4, true);
+  case MVT::mx1xnx8xbf8:
+    return ScalableMatrixType::get(Type::getBF8Ty(Context), 1, 8, true);
+  case MVT::mx1xnx16xbf8:
+    return ScalableMatrixType::get(Type::getBF8Ty(Context), 1, 16, true);
+  case MVT::mx1xnx32xbf8:
+    return ScalableMatrixType::get(Type::getBF8Ty(Context), 1, 32, true);
+  case MVT::mx1xnx64xbf8:
+    return ScalableMatrixType::get(Type::getBF8Ty(Context), 1, 64, true);
+  case MVT::mx1xnx1xhf8:
+    return ScalableMatrixType::get(Type::getHF8Ty(Context), 1, 1, true);
+  case MVT::mx1xnx2xhf8:
+    return ScalableMatrixType::get(Type::getHF8Ty(Context), 1, 2, true);
+  case MVT::mx1xnx4xhf8:
+    return ScalableMatrixType::get(Type::getHF8Ty(Context), 1, 4, true);
+  case MVT::mx1xnx8xhf8:
+    return ScalableMatrixType::get(Type::getHF8Ty(Context), 1, 8, true);
+  case MVT::mx1xnx16xhf8:
+    return ScalableMatrixType::get(Type::getHF8Ty(Context), 1, 16, true);
+  case MVT::mx1xnx32xhf8:
+    return ScalableMatrixType::get(Type::getHF8Ty(Context), 1, 32, true);
+  case MVT::mx1xnx64xhf8:
+    return ScalableMatrixType::get(Type::getHF8Ty(Context), 1, 64, true);
+#endif
+  case MVT::mx1xnx1xbf16:
+    return ScalableMatrixType::get(Type::getBFloatTy(Context), 1, 1, true);
+  case MVT::mx1xnx2xbf16:
+    return ScalableMatrixType::get(Type::getBFloatTy(Context), 1, 2, true);
+  case MVT::mx1xnx4xbf16:
+    return ScalableMatrixType::get(Type::getBFloatTy(Context), 1, 4, true);
+  case MVT::mx1xnx8xbf16:
+    return ScalableMatrixType::get(Type::getBFloatTy(Context), 1, 8, true);
+  case MVT::mx1xnx16xbf16:
+    return ScalableMatrixType::get(Type::getBFloatTy(Context), 1, 16, true);
+  case MVT::mx1xnx32xbf16:
+    return ScalableMatrixType::get(Type::getBFloatTy(Context), 1, 32, true);
+  case MVT::mx1xnx1xf16:
+    return ScalableMatrixType::get(Type::getHalfTy(Context), 1, 1, true);
+  case MVT::mx1xnx2xf16:
+    return ScalableMatrixType::get(Type::getHalfTy(Context), 1, 2, true);
+  case MVT::mx1xnx4xf16:
+    return ScalableMatrixType::get(Type::getHalfTy(Context), 1, 4, true);
+  case MVT::mx1xnx8xf16:
+    return ScalableMatrixType::get(Type::getHalfTy(Context), 1, 8, true);
+  case MVT::mx1xnx16xf16:
+    return ScalableMatrixType::get(Type::getHalfTy(Context), 1, 16, true);
+  case MVT::mx1xnx32xf16:
+    return ScalableMatrixType::get(Type::getHalfTy(Context), 1, 32, true);
+  case MVT::mx1xnx1xf32:
+    return ScalableMatrixType::get(Type::getFloatTy(Context), 1, 1, true);
+  case MVT::mx1xnx2xf32:
+    return ScalableMatrixType::get(Type::getFloatTy(Context), 1, 2, true);
+  case MVT::mx1xnx4xf32:
+    return ScalableMatrixType::get(Type::getFloatTy(Context), 1, 4, true);
+  case MVT::mx1xnx8xf32:
+    return ScalableMatrixType::get(Type::getFloatTy(Context), 1, 8, true);
+  case MVT::mx1xnx16xf32:
+    return ScalableMatrixType::get(Type::getFloatTy(Context), 1, 16, true);
+  case MVT::mx1xnx1xf64:
+    return ScalableMatrixType::get(Type::getDoubleTy(Context), 1, 1, true);
+  case MVT::mx1xnx2xf64:
+    return ScalableMatrixType::get(Type::getDoubleTy(Context), 1, 2, true);
+  case MVT::mx1xnx4xf64:
+    return ScalableMatrixType::get(Type::getDoubleTy(Context), 1, 4, true);
+  case MVT::mx1xnx8xf64:
+    return ScalableMatrixType::get(Type::getDoubleTy(Context), 1, 8, true);
+#endif
   case MVT::Metadata: return Type::getMetadataTy(Context);
   }
   // clang-format on
@@ -588,6 +906,12 @@ MVT MVT::getVT(Type *Ty, bool HandleUnknown){
     return MVT::isVoid;
   case Type::IntegerTyID:
     return getIntegerVT(cast<IntegerType>(Ty)->getBitWidth());
+#ifdef FP8_DATATYPES
+  case Type::BF8TyID:
+    return MVT(MVT::bf8);
+  case Type::HF8TyID:
+    return MVT(MVT::hf8);
+#endif
   case Type::HalfTyID:      return MVT(MVT::f16);
   case Type::BFloatTyID:    return MVT(MVT::bf16);
   case Type::FloatTyID:     return MVT(MVT::f32);
@@ -615,7 +939,14 @@ MVT MVT::getVT(Type *Ty, bool HandleUnknown){
       getVT(VTy->getElementType(), /*HandleUnknown=*/ false),
             VTy->getElementCount());
   }
+#ifdef SCALABLE_MATRIX
+  case Type::ScalableMatrixTyID:
+    ScalableMatrixType *MTy = cast<ScalableMatrixType>(Ty);
+    return getMatrixVT(getVT(MTy->getElementType(), /*HandleUnknown=*/false),
+                       MTy->getNumElts(), MTy->getNumElts2(),
+                       MTy->getScalable());
   }
+#endif
 }
 
 /// getEVT - Return the value type corresponding to the specified type.  This
@@ -634,6 +965,15 @@ EVT EVT::getEVT(Type *Ty, bool HandleUnknown){
                        getEVT(VTy->getElementType(), /*HandleUnknown=*/ false),
                        VTy->getElementCount());
   }
+#ifdef SCALABLE_MATRIX
+  case Type::ScalableMatrixTyID: {
+    ScalableMatrixType *VTy = cast<ScalableMatrixType>(Ty);
+    return getMatrixVT(Ty->getContext(),
+                       getEVT(VTy->getElementType(), /*HandleUnknown=*/false),
+                       VTy->getNumElts(), VTy->getNumElts2(),
+                       VTy->getScalable());
+  }
+#endif
   }
 }
 

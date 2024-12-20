@@ -1699,7 +1699,11 @@ protected:
     unsigned : NumTypeBits;
 
     /// The kind (BuiltinType::Kind) of builtin type this is.
+#ifdef SCALABLE_MATRIX
+    static constexpr unsigned NumOfBuiltinTypeBits = 10;
+#else
     static constexpr unsigned NumOfBuiltinTypeBits = 9;
+#endif
     unsigned Kind : NumOfBuiltinTypeBits;
   };
 
@@ -2124,6 +2128,11 @@ public:
   /// Returns true for RVV scalable vector types.
   bool isRVVSizelessBuiltinType() const;
 
+#ifdef SCALABLE_MATRIX
+  /// Returns true for all scalable matrix types.
+  bool isScalableMatrixSizelessType() const;
+#endif
+
   /// Check if this is a WebAssembly Externref Type.
   bool isWebAssemblyExternrefType() const;
 
@@ -2244,6 +2253,14 @@ public:
   bool isFloatingType() const;     // C99 6.2.5p11 (real floating + complex)
   bool isHalfType() const;         // OpenCL 6.1.1.1, NEON (IEEE 754-2008 half)
   bool isFloat16Type() const;      // C11 extension ISO/IEC TS 18661
+#ifdef FP8_DATATYPES
+  bool isHF8Type() const;
+  bool isBF8Type() const;
+#endif
+#ifdef SCALABLE_MATRIX
+  bool isFloat32Type() const;
+  bool isFloat64Type() const;
+#endif
   bool isBFloat16Type() const;
   bool isFloat128Type() const;
   bool isIbm128Type() const;
@@ -2291,6 +2308,9 @@ public:
   bool isExtVectorBoolType() const;             // Extended vector type with bool element.
   bool isMatrixType() const;                    // Matrix type.
   bool isConstantMatrixType() const;            // Constant matrix type.
+#ifdef SCALABLE_MATRIX
+  bool isScalableMatrixType() const;            // Scalable matrix type.
+#endif
   bool isDependentAddressSpaceType() const;     // value-dependent address space qualifier
   bool isObjCObjectPointerType() const;         // pointer to ObjC object
   bool isObjCRetainableType() const;            // ObjC object or block pointer
@@ -2751,6 +2771,11 @@ public:
 // RVV Types
 #define RVV_TYPE(Name, Id, SingletonId) Id,
 #include "clang/Basic/RISCVVTypes.def"
+#ifdef SCALABLE_MATRIX
+// Scalable matrix types
+#define SMAT_BASE(Name, Id, SingletonId) Id,
+#include "clang/Basic/ScalableMatrixTypes.def"
+#endif
 // WebAssembly reference types
 #define WASM_TYPE(Name, Id, SingletonId) Id,
 #include "clang/Basic/WebAssemblyReferenceTypes.def"
@@ -3786,6 +3811,73 @@ public:
   static void Profile(llvm::FoldingSetNodeID &ID, const ASTContext &Context,
                       QualType ElementType, Expr *RowExpr, Expr *ColumnExpr);
 };
+
+#ifdef SCALABLE_MATRIX
+/// Represents a scalable matrix type, as defined in the Matrix Types
+/// clang extension.
+/// __attribute__((scalable_matrix_type(rows, columns, scalable))), where "rows"
+/// specifies number of rows, "columns" specifies the number of columns and
+/// "scalable" specifies whether the matrix is allowed to scale.
+class ScalableMatrixType final : public Type, public llvm::FoldingSetNode {
+protected:
+  friend class ASTContext;
+
+  /// The element type of the matrix.
+  QualType ElementType;
+
+  /// Number of rows and columns.
+  unsigned NumRows;
+  unsigned NumColumns;
+
+  /// Whether it is actually scalable
+  bool Scalable;
+
+  ScalableMatrixType(TypeClass typeClass, QualType MatrixType, unsigned NRows,
+                     unsigned NColumns, bool Scalable,
+                     QualType CanonElementType);
+
+public:
+
+  static bool isValidElementType(QualType T) {
+    return T->isDependentType() ||
+           (T->isRealType() && !T->isBooleanType() && !T->isEnumeralType());
+  }
+
+  /// Returns the matrix element type.
+  QualType getElementType() const { return ElementType; }
+
+  /// Returns the number of rows in the matrix.
+  unsigned getNumRows() const { return NumRows; }
+
+  /// Returns the number of columns in the matrix.
+  unsigned getNumColumns() const { return NumColumns; }
+
+  /// Returns whether the matrix is scalable.
+  bool getScalable() const { return Scalable; }
+
+  bool isSugared() const { return false; }
+  QualType desugar() const { return QualType(this, 0); }
+
+  void Profile(llvm::FoldingSetNodeID &ID) {
+    Profile(ID, getElementType(), getNumRows(), getNumColumns(), getScalable(),
+            getTypeClass());
+  }
+
+  static void Profile(llvm::FoldingSetNodeID &ID, QualType ElementType,
+                      unsigned NumRows, unsigned NumColumns, bool Scalable,
+                      TypeClass TypeClass) {
+    ID.AddPointer(ElementType.getAsOpaquePtr());
+    ID.AddInteger(NumRows);
+    ID.AddInteger(NumColumns);
+    ID.AddBoolean(Scalable);
+    ID.AddInteger(TypeClass);
+  }
+
+  static bool classof(const Type *T) {
+    return T->getTypeClass() == ScalableMatrix;
+  }
+};
+#endif
 
 /// FunctionType - C99 6.7.5.3 - Function Declarators.  This is the common base
 /// class of FunctionNoProtoType and FunctionProtoType.
@@ -7196,6 +7288,12 @@ inline bool Type::isConstantMatrixType() const {
   return isa<ConstantMatrixType>(CanonicalType);
 }
 
+#ifdef SCALABLE_MATRIX
+inline bool Type::isScalableMatrixType() const {
+  return isa<ScalableMatrixType>(CanonicalType);
+}
+#endif
+
 inline bool Type::isDependentAddressSpaceType() const {
   return isa<DependentAddressSpaceType>(CanonicalType);
 }
@@ -7365,6 +7463,15 @@ inline bool Type::isVoidType() const {
   return isSpecificBuiltinType(BuiltinType::Void);
 }
 
+#ifdef FP8_DATATYPES
+inline bool Type::isHF8Type() const {
+  return isSpecificBuiltinType(BuiltinType::HF8);
+}
+
+inline bool Type::isBF8Type() const {
+  return isSpecificBuiltinType(BuiltinType::BF8);
+}
+#endif
 inline bool Type::isHalfType() const {
   // FIXME: Should we allow complex __fp16? Probably not.
   return isSpecificBuiltinType(BuiltinType::Half);
@@ -7373,6 +7480,16 @@ inline bool Type::isHalfType() const {
 inline bool Type::isFloat16Type() const {
   return isSpecificBuiltinType(BuiltinType::Float16);
 }
+
+#ifdef SCALABLE_MATRIX
+inline bool Type::isFloat32Type() const {
+  return isSpecificBuiltinType(BuiltinType::Float);
+}
+
+inline bool Type::isFloat64Type() const {
+  return isSpecificBuiltinType(BuiltinType::Double);
+}
+#endif
 
 inline bool Type::isBFloat16Type() const {
   return isSpecificBuiltinType(BuiltinType::BFloat16);

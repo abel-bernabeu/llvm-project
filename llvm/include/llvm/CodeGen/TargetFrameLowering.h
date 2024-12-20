@@ -29,7 +29,8 @@ enum Value {
   Default = 0,
   SGPRSpill = 1,
   ScalableVector = 2,
-  WasmLocal = 3,
+  ScalableMatrix = 3,
+  WasmLocal = 4,
   NoAlloc = 255
 };
 }
@@ -433,6 +434,11 @@ public:
 
   /// Returns the StackID that scalable vectors should be associated with.
   virtual TargetStackID::Value getStackIDForScalableVectors() const {
+    return TargetStackID::Default;
+  }
+
+  /// Returns the StackID that scalable matrices should be associated with.
+  virtual TargetStackID::Value getStackIDForScalableMatrices() const {
     return TargetStackID::Default;
   }
 

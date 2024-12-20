@@ -1094,6 +1094,12 @@ ExpectedType ASTNodeImporter::VisitBuiltinType(const BuiltinType *T) {
   case BuiltinType::Id:                                                        \
     return Importer.getToContext().SingletonId;
 #include "clang/Basic/RISCVVTypes.def"
+#ifdef SCALABLE_MATRIX
+#define SMAT_BASE(Name, Id, SingletonId)                                       \
+  case BuiltinType::Id:                                                        \
+    return Importer.getToContext().SingletonId;
+#include "clang/Basic/ScalableMatrixTypes.def"
+#endif
 #define WASM_TYPE(Name, Id, SingletonId)                                       \
   case BuiltinType::Id:                                                        \
     return Importer.getToContext().SingletonId;
@@ -1741,6 +1747,18 @@ ExpectedType clang::ASTNodeImporter::VisitConstantMatrixType(
   return Importer.getToContext().getConstantMatrixType(
       *ToElementTypeOrErr, T->getNumRows(), T->getNumColumns());
 }
+
+#ifdef SCALABLE_MATRIX
+ExpectedType clang::ASTNodeImporter::VisitScalableMatrixType(
+    const clang::ScalableMatrixType *T) {
+  ExpectedType ToElementTypeOrErr = import(T->getElementType());
+  if (!ToElementTypeOrErr)
+    return ToElementTypeOrErr.takeError();
+
+  return Importer.getToContext().getScalableMatrixType(
+      *ToElementTypeOrErr, T->getNumRows(), T->getNumColumns(), T->getScalable());
+}
+#endif
 
 ExpectedType clang::ASTNodeImporter::VisitDependentAddressSpaceType(
     const clang::DependentAddressSpaceType *T) {

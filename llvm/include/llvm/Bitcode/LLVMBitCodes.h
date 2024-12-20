@@ -151,32 +151,43 @@ enum TypeCodes {
 
   TYPE_CODE_ARRAY = 11,  // ARRAY: [numelts, eltty]
   TYPE_CODE_VECTOR = 12, // VECTOR: [numelts, eltty]
+  TYPE_CODE_SCALABLE_MATRIX = 13, // SCALABLE_MATRIX: [numelts, numelts2, eltty, scalable]
 
   // These are not with the other floating point types because they're
   // a late addition, and putting them in the right place breaks
   // binary compatibility.
-  TYPE_CODE_X86_FP80 = 13,  // X86 LONG DOUBLE
-  TYPE_CODE_FP128 = 14,     // LONG DOUBLE (112 bit mantissa)
-  TYPE_CODE_PPC_FP128 = 15, // PPC LONG DOUBLE (2 doubles)
+  TYPE_CODE_X86_FP80 = 14,  // X86 LONG DOUBLE
+  TYPE_CODE_FP128 = 15,     // LONG DOUBLE (112 bit mantissa)
+  TYPE_CODE_PPC_FP128 = 16, // PPC LONG DOUBLE (2 doubles)
 
-  TYPE_CODE_METADATA = 16, // METADATA
+  TYPE_CODE_METADATA = 17, // METADATA
 
-  TYPE_CODE_X86_MMX = 17, // X86 MMX
+  TYPE_CODE_X86_MMX = 18, // X86 MMX
 
-  TYPE_CODE_STRUCT_ANON = 18,  // STRUCT_ANON: [ispacked, eltty x N]
-  TYPE_CODE_STRUCT_NAME = 19,  // STRUCT_NAME: [strchr x N]
-  TYPE_CODE_STRUCT_NAMED = 20, // STRUCT_NAMED: [ispacked, eltty x N]
+  TYPE_CODE_STRUCT_ANON = 19,  // STRUCT_ANON: [ispacked, eltty x N]
+  TYPE_CODE_STRUCT_NAME = 20,  // STRUCT_NAME: [strchr x N]
+  TYPE_CODE_STRUCT_NAMED = 21, // STRUCT_NAMED: [ispacked, eltty x N]
 
-  TYPE_CODE_FUNCTION = 21, // FUNCTION: [vararg, retty, paramty x N]
+  TYPE_CODE_FUNCTION = 22, // FUNCTION: [vararg, retty, paramty x N]
 
-  TYPE_CODE_TOKEN = 22, // TOKEN
+  TYPE_CODE_TOKEN = 23, // TOKEN
 
-  TYPE_CODE_BFLOAT = 23,  // BRAIN FLOATING POINT
-  TYPE_CODE_X86_AMX = 24, // X86 AMX
+  TYPE_CODE_BFLOAT = 24,  // BRAIN FLOATING POINT
+#ifdef FP8_DATATYPES
+  TYPE_CODE_BF8 = 25,  // BF8 FLOATING POINT
+  TYPE_CODE_HF8 = 26,  // HF8 FLOATING POINT
+  TYPE_CODE_X86_AMX = 27, // X86 AMX
 
-  TYPE_CODE_OPAQUE_POINTER = 25, // OPAQUE_POINTER: [addrspace]
+  TYPE_CODE_OPAQUE_POINTER = 28, // OPAQUE_POINTER: [addrspace]
 
-  TYPE_CODE_TARGET_TYPE = 26, // TARGET_TYPE
+  TYPE_CODE_TARGET_TYPE = 29, // TARGET_TYPE
+#else
+  TYPE_CODE_X86_AMX = 25, // X86 AMX
+
+  TYPE_CODE_OPAQUE_POINTER = 26, // OPAQUE_POINTER: [addrspace]
+
+  TYPE_CODE_TARGET_TYPE = 27, // TARGET_TYPE
+#endif
 };
 
 enum OperandBundleTagCode {

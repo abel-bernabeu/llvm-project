@@ -280,6 +280,9 @@ bool TypePrinter::canPrefixQualifiers(const Type *T,
     case Type::ExtVector:
     case Type::ConstantMatrix:
     case Type::DependentSizedMatrix:
+#ifdef SCALABLE_MATRIX
+    case Type::ScalableMatrix:
+#endif
     case Type::FunctionProto:
     case Type::FunctionNoProto:
     case Type::Paren:
@@ -837,6 +840,24 @@ void TypePrinter::printDependentSizedMatrixAfter(
     const DependentSizedMatrixType *T, raw_ostream &OS) {
   printAfter(T->getElementType(), OS);
 }
+
+#ifdef SCALABLE_MATRIX
+void TypePrinter::printScalableMatrixBefore(const ScalableMatrixType *T,
+                                       raw_ostream &OS) {
+  printBefore(T->getElementType(), OS);
+}
+
+void TypePrinter::printScalableMatrixAfter(const ScalableMatrixType *T, raw_ostream &OS) {
+  printAfter(T->getElementType(), OS);
+  OS << " __attribute__((scalable_matrix_type(";
+  OS << T->getNumRows();
+  OS << ", ";
+  OS << T->getNumColumns();
+  OS << ", ";
+  OS << T->getScalable();
+  OS << ")))";
+}
+#endif
 
 void
 FunctionProtoType::printExceptionSpecification(raw_ostream &OS,

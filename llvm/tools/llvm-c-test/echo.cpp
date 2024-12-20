@@ -75,6 +75,12 @@ struct TypeCloner {
         return LLVMVoidTypeInContext(Ctx);
       case LLVMHalfTypeKind:
         return LLVMHalfTypeInContext(Ctx);
+#ifdef FP8_DATATYPES
+      case LLVMBF8TypeKind:
+        return LLVMBF8TypeInContext(Ctx);
+      case LLVMHF8TypeKind:
+        return LLVMHF8TypeInContext(Ctx);
+#endif
       case LLVMBFloatTypeKind:
         return LLVMHalfTypeInContext(Ctx);
       case LLVMFloatTypeKind:
@@ -149,6 +155,16 @@ struct TypeCloner {
       case LLVMScalableVectorTypeKind:
         return LLVMScalableVectorType(Clone(LLVMGetElementType(Src)),
                                       LLVMGetVectorSize(Src));
+      case LLVMMatrixTypeKind:
+        return LLVMMatrixType(Clone(LLVMGetElementType(Src)),
+                              LLVMGetMatrixNumElts(Src),
+                              LLVMGetMatrixNumElts2(Src),
+                              false);
+      case LLVMScalableMatrixTypeKind:
+        return LLVMMatrixType(Clone(LLVMGetElementType(Src)),
+                              LLVMGetMatrixNumElts(Src),
+                              LLVMGetMatrixNumElts2(Src),
+                              LLVMGetMatrixScalable(Src));
       case LLVMMetadataTypeKind:
         return LLVMMetadataTypeInContext(Ctx);
       case LLVMX86_AMXTypeKind:

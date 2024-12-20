@@ -796,4 +796,7 @@ def warn_android_unversioned_fallback : Warning<
 
 def err_drv_triple_version_invalid : Error<
   "version '%0' in target triple '%1' is invalid">;
+
+def err_drv_unsupported_scalable_matrix_size_bits : Error<
+  "unsupported scalable matrix specific size in bits '%0'. The size must be a multiple of 8">;
 }

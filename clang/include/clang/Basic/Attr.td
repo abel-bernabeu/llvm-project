@@ -3201,6 +3201,15 @@ def MatrixType : TypeAttr {
   let PragmaAttributeSupport = 0;
 }
 
+def ScalableMatrixType : TypeAttr {
+  let Spellings = [Clang<"scalable_matrix_type">];
+  let Subjects = SubjectList<[TypedefName], ErrorDiag>;
+  let Args = [ExprArgument<"NumRows">, ExprArgument<"NumColumns">, ExprArgument<"Scalable">];
+  let Documentation = [Undocumented];
+  let ASTNode = 0;
+  let PragmaAttributeSupport = 0;
+}
+
 def Visibility : InheritableAttr {
   let Clone = 0;
   let Spellings = [GCC<"visibility">];

@@ -11612,6 +11612,10 @@ GCCTypeClass EvaluateBuiltinClassifyType(QualType T,
 #include "clang/Basic/PPCTypes.def"
 #define RVV_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
 #include "clang/Basic/RISCVVTypes.def"
+#ifdef SCALABLE_MATRIX
+#define SMAT_BASE(Name, Id, SingletonId) case BuiltinType::Id:
+#include "clang/Basic/ScalableMatrixTypes.def"
+#endif
 #define WASM_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
 #include "clang/Basic/WebAssemblyReferenceTypes.def"
       return GCCTypeClass::None;
@@ -11655,6 +11659,9 @@ GCCTypeClass EvaluateBuiltinClassifyType(QualType T,
 
   case Type::BlockPointer:
   case Type::ConstantMatrix:
+#ifdef SCALABLE_MATRIX
+  case Type::ScalableMatrix:
+#endif
   case Type::ObjCObject:
   case Type::ObjCInterface:
   case Type::ObjCObjectPointer:

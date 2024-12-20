@@ -352,6 +352,21 @@ void LLTCodeGen::emitCxxEnumValue(raw_ostream &OS) const {
     OS << "GILLT_s" << Ty.getSizeInBits();
     return;
   }
+#ifdef SCALABLE_MATRIX
+  if (Ty.isMatrix()) {
+    if (Ty.isScalable())
+      OS << "GILLT_mx"
+        << Ty.getNumElements() << "xnx"
+        << Ty.getNumElements2() << "xs"
+        << Ty.getScalarSizeInBits();
+    else
+      OS << "GILLT_m"
+        << Ty.getNumElements() << "x"
+        << Ty.getNumElements2() << "xs"
+        << Ty.getScalarSizeInBits();
+    return;
+  }
+#endif
   if (Ty.isVector()) {
     OS << (Ty.isScalable() ? "GILLT_nxv" : "GILLT_v")
        << Ty.getElementCount().getKnownMinValue() << "s"
@@ -372,6 +387,16 @@ void LLTCodeGen::emitCxxConstructorCall(raw_ostream &OS) const {
     OS << "LLT::scalar(" << Ty.getSizeInBits() << ")";
     return;
   }
+#ifdef SCALABLE_MATRIX
+  if (Ty.isMatrix()) {
+      OS << "LLT::matrix("
+        << Ty.getNumElements() << ", "
+        << Ty.getNumElements2() << ", "
+        << (Ty.isScalable() ? "true" : "false") << ", "
+        << "LLT::scalar(" << Ty.getScalarSizeInBits() << "))";
+    return;
+  }
+#endif
   if (Ty.isVector()) {
     OS << "LLT::vector("
        << (Ty.isScalable() ? "ElementCount::getScalable("
@@ -397,6 +422,10 @@ bool LLTCodeGen::operator<(const LLTCodeGen &Other) const {
   if (!Ty.isValid())
     return false;
 
+#ifdef SCALABLE_MATRIX
+  if (Ty.isMatrix() != Other.Ty.isMatrix())
+    return Ty.isMatrix() < Other.Ty.isMatrix();
+#endif
   if (Ty.isVector() != Other.Ty.isVector())
     return Ty.isVector() < Other.Ty.isVector();
   if (Ty.isScalar() != Other.Ty.isScalar())
@@ -407,6 +436,21 @@ bool LLTCodeGen::operator<(const LLTCodeGen &Other) const {
   if (Ty.isPointer() && Ty.getAddressSpace() != Other.Ty.getAddressSpace())
     return Ty.getAddressSpace() < Other.Ty.getAddressSpace();
 
+#ifdef SCALABLE_MATRIX
+  if (Ty.isMatrix()) {
+    auto TyTuple = std::make_tuple(
+      Ty.isScalable(),
+      Ty.getNumElements(),
+      Ty.getNumElements2(),
+      Ty.getScalarSizeInBits());
+    auto OtherTuple = std::make_tuple(
+      Other.Ty.isScalable(),
+      Other.Ty.getNumElements(),
+      Other.Ty.getNumElements2(),
+      Other.Ty.getScalarSizeInBits());
+    return TyTuple < OtherTuple;
+  }
+#endif
   if (Ty.isVector() && Ty.getElementCount() != Other.Ty.getElementCount())
     return std::make_tuple(Ty.isScalable(),
                            Ty.getElementCount().getKnownMinValue()) <
@@ -429,6 +473,12 @@ bool LLTCodeGen::operator<(const LLTCodeGen &Other) const {
 std::optional<LLTCodeGen> MVTToLLT(MVT::SimpleValueType SVT) {
   MVT VT(SVT);
 
+#ifdef SCALABLE_MATRIX
+  if (VT.isMatrix())
+    return LLTCodeGen(
+        LLT::matrix(VT.getMatrixNumElements(), VT.getMatrixNumElements2(),
+                    VT.isScalableVT(), LLT::scalar(VT.getScalarSizeInBits())));
+#endif
   if (VT.isVector() && !VT.getVectorElementCount().isScalar())
     return LLTCodeGen(
         LLT::vector(VT.getVectorElementCount(), VT.getScalarSizeInBits()));

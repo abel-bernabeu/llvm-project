@@ -573,6 +573,10 @@ CXString clang_getTypeKindSpelling(enum CXTypeKind K) {
     TKIND(Long);
     TKIND(LongLong);
     TKIND(Int128);
+#ifdef FP8_DATATYPES
+    TKIND(BF8);
+    TKIND(HF8);
+#endif
     TKIND(Half);
     TKIND(Float);
     TKIND(Double);

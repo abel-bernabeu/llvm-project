@@ -1121,10 +1121,14 @@ const unsigned TiedMax = 15;
 void MachineInstr::tieOperands(unsigned DefIdx, unsigned UseIdx) {
   MachineOperand &DefMO = getOperand(DefIdx);
   MachineOperand &UseMO = getOperand(UseIdx);
+#ifndef NDEBUG
   assert(DefMO.isDef() && "DefIdx must be a def operand");
   assert(UseMO.isUse() && "UseIdx must be a use operand");
-  assert(!DefMO.isTied() && "Def is already tied to another use");
-  assert(!UseMO.isTied() && "Use is already tied to another def");
+  bool DefAlreadyTiedToUse = DefMO.isTied() && (DefMO.TiedTo == UseIdx + 1);
+  bool UseAlreadyTiedToDef = UseMO.isTied() && (UseMO.TiedTo == DefIdx + 1);
+  assert((DefAlreadyTiedToUse || !DefMO.isTied()) && "Def is already tied to another use");
+  assert((UseAlreadyTiedToDef || !UseMO.isTied()) && "Use is already tied to another def");
+#endif
 
   if (DefIdx < TiedMax)
     UseMO.TiedTo = DefIdx + 1;

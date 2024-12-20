@@ -2097,7 +2097,10 @@ public:
                               SourceLocation AttrLoc);
   QualType BuildMatrixType(QualType T, Expr *NumRows, Expr *NumColumns,
                            SourceLocation AttrLoc);
-
+#ifdef SCALABLE_MATRIX
+  QualType BuildScalableMatrixType(QualType T, Expr *NumRows, Expr *NumColumns, Expr* Scalable,
+                           SourceLocation AttrLoc);
+#endif
   QualType BuildAddressSpaceAttr(QualType &T, LangAS ASIdx, Expr *AddrSpace,
                                  SourceLocation AttrLoc);
 

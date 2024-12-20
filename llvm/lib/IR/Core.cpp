@@ -551,6 +551,12 @@ LLVMTypeKind LLVMGetTypeKind(LLVMTypeRef Ty) {
   switch (unwrap(Ty)->getTypeID()) {
   case Type::VoidTyID:
     return LLVMVoidTypeKind;
+#ifdef FP8_DATATYPES
+  case Type::BF8TyID:
+    return LLVMBF8TypeKind;
+  case Type::HF8TyID:
+    return LLVMHF8TypeKind;
+#endif
   case Type::HalfTyID:
     return LLVMHalfTypeKind;
   case Type::BFloatTyID:
@@ -591,6 +597,10 @@ LLVMTypeKind LLVMGetTypeKind(LLVMTypeRef Ty) {
     return LLVMScalableVectorTypeKind;
   case Type::TargetExtTyID:
     return LLVMTargetExtTypeKind;
+#ifdef SCALABLE_MATRIX
+  case Type::ScalableMatrixTyID:
+    return LLVMScalableMatrixTypeKind;
+#endif
   case Type::TypedPointerTyID:
     llvm_unreachable("Typed pointers are unsupported via the C API");
   }
@@ -682,6 +692,14 @@ LLVMTypeRef LLVMHalfTypeInContext(LLVMContextRef C) {
 LLVMTypeRef LLVMBFloatTypeInContext(LLVMContextRef C) {
   return (LLVMTypeRef) Type::getBFloatTy(*unwrap(C));
 }
+#ifdef FP8_DATATYPES
+LLVMTypeRef LLVMBF8TypeInContext(LLVMContextRef C) {
+  return (LLVMTypeRef) Type::getBF8Ty(*unwrap(C));
+}
+LLVMTypeRef LLVMHF8TypeInContext(LLVMContextRef C) {
+  return (LLVMTypeRef) Type::getHF8Ty(*unwrap(C));
+}
+#endif
 LLVMTypeRef LLVMFloatTypeInContext(LLVMContextRef C) {
   return (LLVMTypeRef) Type::getFloatTy(*unwrap(C));
 }
@@ -862,6 +880,13 @@ LLVMTypeRef LLVMScalableVectorType(LLVMTypeRef ElementType,
   return wrap(ScalableVectorType::get(unwrap(ElementType), ElementCount));
 }
 
+LLVMTypeRef LLVMMatrixType(LLVMTypeRef ElementType,
+                           unsigned NumElts, unsigned NumElts2,
+                           bool Scalable) {
+  return wrap(ScalableMatrixType::get(unwrap(ElementType), NumElts, NumElts2,
+                                      Scalable));
+}
+
 LLVMTypeRef LLVMGetElementType(LLVMTypeRef WrappedTy) {
   auto *Ty = unwrap(WrappedTy);
   if (auto *ATy = dyn_cast<ArrayType>(Ty))
@@ -887,6 +912,18 @@ unsigned LLVMGetPointerAddressSpace(LLVMTypeRef PointerTy) {
 
 unsigned LLVMGetVectorSize(LLVMTypeRef VectorTy) {
   return unwrap<VectorType>(VectorTy)->getElementCount().getKnownMinValue();
+}
+
+unsigned LLVMGetMatrixNumElts(LLVMTypeRef MatrixTy) {
+  return unwrap<ScalableMatrixType>(MatrixTy)->getNumElts();
+}
+
+unsigned LLVMGetMatrixNumElts2(LLVMTypeRef MatrixTy) {
+  return unwrap<ScalableMatrixType>(MatrixTy)->getNumElts2();
+}
+
+bool LLVMGetMatrixScalable(LLVMTypeRef MatrixTy) {
+  return unwrap<ScalableMatrixType>(MatrixTy)->getScalable();
 }
 
 /*--.. Operations on other types ...........................................--*/

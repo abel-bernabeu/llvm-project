@@ -159,13 +159,29 @@ void FunctionLoweringInfo::set(const Function &fn, MachineFunction &mf,
                                                               false, AI);
           }
 
+#ifdef SCALABLE_MATRIX
+          // Scalable vectors/matrices and arrays or structures that contain
+          // scalable vectors/matrices may need a special StackID to distinguish
+          // them from other (fixed size) stack objects.
+          Type::TypeID InnerDataTypeID = Type::TypeID::VoidTyID;
+          if (Ty->isScalableTy(&InnerDataTypeID)) {
+            if (InnerDataTypeID == Type::TypeID::ScalableMatrixTyID)
+              MF->getFrameInfo().setStackID(FrameIndex,
+                                        TFI->getStackIDForScalableMatrices());
+            else {
+              //assert(InnerDataTypeID == Type::TypeID::ScalableVectorTyID);
+              MF->getFrameInfo().setStackID(FrameIndex,
+                                            TFI->getStackIDForScalableVectors());
+            }
+          }
+#else
           // Scalable vectors and structures that contain scalable vectors may
           // need a special StackID to distinguish them from other (fixed size)
           // stack objects.
           if (Ty->isScalableTy())
             MF->getFrameInfo().setStackID(FrameIndex,
                                           TFI->getStackIDForScalableVectors());
-
+#endif
           StaticAllocaMap[AI] = FrameIndex;
           // Update the catch handler information.
           if (Iter != CatchObjects.end()) {

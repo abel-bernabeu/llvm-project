@@ -1873,7 +1873,11 @@ Constant *ConstantFoldSSEConvertToInt(const APFloat &Val, bool roundTowardZero,
 double getValueAsDouble(ConstantFP *Op) {
   Type *Ty = Op->getType();
 
+#ifdef FP8_DATATYPES
+  if (Ty->isBF8Ty() || Ty->isHF8Ty() || Ty->isBFloatTy() || Ty->isHalfTy() || Ty->isFloatTy() || Ty->isDoubleTy())
+#else
   if (Ty->isBFloatTy() || Ty->isHalfTy() || Ty->isFloatTy() || Ty->isDoubleTy())
+#endif
     return Op->getValueAPF().convertToDouble();
 
   bool unused;

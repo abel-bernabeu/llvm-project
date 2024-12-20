@@ -178,6 +178,11 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::CopyFromReg:                return "CopyFromReg";
   case ISD::UNDEF:                      return "undef";
   case ISD::VSCALE:                     return "vscale";
+#ifdef SCALABLE_MATRIX
+  case ISD::MSCALE:                     return "mscale";
+  case ISD::NSCALE:                     return "nscale";
+  case ISD::MNSCALE:                    return "mnscale";
+#endif
   case ISD::MERGE_VALUES:               return "merge_values";
   case ISD::INLINEASM:                  return "inlineasm";
   case ISD::INLINEASM_BR:               return "inlineasm_br";

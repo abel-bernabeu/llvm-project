@@ -55,6 +55,10 @@ public:
     // PrimitiveTypes
     HalfTyID = 0,  ///< 16-bit floating point type
     BFloatTyID,    ///< 16-bit floating point type (7-bit significand)
+#ifdef FP8_DATATYPES
+    BF8TyID,       ///< 8-bit bf8 floating point type
+    HF8TyID,       ///< 8-bit hf8 floating point type
+#endif
     FloatTyID,     ///< 32-bit floating point type
     DoubleTyID,    ///< 64-bit floating point type
     X86_FP80TyID,  ///< 80-bit floating point type (X87)
@@ -77,6 +81,9 @@ public:
     ScalableVectorTyID, ///< Scalable SIMD vector type
     TypedPointerTyID,   ///< Typed pointer used by some GPU targets
     TargetExtTyID,      ///< Target extension type
+#ifdef SCALABLE_MATRIX
+    ScalableMatrixTyID, ///< Scalable matrix type
+#endif
   };
 
 private:
@@ -145,6 +152,14 @@ public:
   /// Return true if this is 'bfloat', a 16-bit bfloat type.
   bool isBFloatTy() const { return getTypeID() == BFloatTyID; }
 
+#ifdef FP8_DATATYPES
+  /// Return true if this is 'bf8', a 8-bit bfloat type.
+  bool isBF8Ty() const { return getTypeID() == BF8TyID; }
+
+  /// Return true if this is 'hf8', a 8-bit bfloat type.
+  bool isHF8Ty() const { return getTypeID() == HF8TyID; }
+
+#endif
   /// Return true if this is a 16-bit float type.
   bool is16bitFPTy() const {
     return getTypeID() == BFloatTyID || getTypeID() == HalfTyID;
@@ -174,6 +189,10 @@ public:
     case FloatTyID:
     case HalfTyID:
     case BFloatTyID:
+#ifdef FP8_DATATYPES
+    case BF8TyID:
+    case HF8TyID:
+#endif
     case FP128TyID:
       return true;
     default:
@@ -210,7 +229,10 @@ public:
   bool isScalableTargetExtTy() const;
 
   /// Return true if this is a type whose size is a known multiple of vscale.
-  bool isScalableTy() const;
+  bool isScalableTy(TypeID *InnerDataTypeIDPtr = nullptr) const;
+
+  /// Return ScaleID if this is a type whose size is a known multiple of vscale or mnscale.
+  TypeSize::ScaleID getScaleID() const;
 
   /// Return true if this is a FP type or a vector of FP.
   bool isFPOrFPVectorTy() const { return getScalarType()->isFloatingPointTy(); }
@@ -236,6 +258,17 @@ public:
   /// Return true if this is an integer type or a vector of integer types of
   /// the given width.
   bool isIntOrIntVectorTy(unsigned BitWidth) const {
+    return getScalarType()->isIntegerTy(BitWidth);
+
+  }
+
+  /// Return true if this is an integer type, a vector of integer types or a
+  /// matrix of integer types.
+  bool isOrContainsIntegerTy() const { return getScalarType()->isIntegerTy(); }
+
+  /// Return true if this is an integer type, a vector of integer types of
+  /// the given width or a matrix.
+  bool isOrContainesIntegerTy(unsigned BitWidth) const {
     return getScalarType()->isIntegerTy(BitWidth);
   }
 
@@ -266,6 +299,11 @@ public:
     return getTypeID() == ScalableVectorTyID || getTypeID() == FixedVectorTyID;
   }
 
+  /// True if this is an instance of ScalableMatrixType.
+  inline bool isMatrixTy() const {
+    return getTypeID() == ScalableMatrixTyID;
+  }
+
   /// Return true if this type could be converted with a lossless BitCast to
   /// type 'Ty'. For example, i8* to i32*. BitCasts are valid for types of the
   /// same size only where no re-interpretation of the bits is done.
@@ -286,7 +324,7 @@ public:
   /// includes all first-class types except struct and array types.
   bool isSingleValueType() const {
     return isFloatingPointTy() || isX86_MMXTy() || isIntegerTy() ||
-           isPointerTy() || isVectorTy() || isX86_AMXTy() || isTargetExtTy();
+           isPointerTy() || isVectorTy() || isMatrixTy() || isX86_AMXTy() || isTargetExtTy();
   }
 
   /// Return true if the type is an aggregate type. This means it is valid as
@@ -308,7 +346,7 @@ public:
     // If it is not something that can have a size (e.g. a function or label),
     // it doesn't have a size.
     if (getTypeID() != StructTyID && getTypeID() != ArrayTyID &&
-        !isVectorTy() && getTypeID() != TargetExtTyID)
+        !isVectorTy() && !isMatrixTy() && getTypeID() != TargetExtTyID)
       return false;
     // Otherwise we have to try harder to decide.
     return isSizedDerivedType(Visited);
@@ -346,7 +384,7 @@ public:
   /// If this is a vector type, return the element type, otherwise return
   /// 'this'.
   inline Type *getScalarType() const {
-    if (isVectorTy())
+    if (isVectorTy() || isMatrixTy())
       return getContainedType(0);
     return const_cast<Type *>(this);
   }
@@ -447,6 +485,10 @@ public:
   static Type *getLabelTy(LLVMContext &C);
   static Type *getHalfTy(LLVMContext &C);
   static Type *getBFloatTy(LLVMContext &C);
+  #ifdef FP8_DATATYPES
+  static Type *getBF8Ty(LLVMContext &C);
+  static Type *getHF8Ty(LLVMContext &C);
+  #endif
   static Type *getFloatTy(LLVMContext &C);
   static Type *getDoubleTy(LLVMContext &C);
   static Type *getMetadataTy(LLVMContext &C);

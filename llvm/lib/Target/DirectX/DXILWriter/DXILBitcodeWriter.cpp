@@ -1134,6 +1134,18 @@ void DXILBitcodeWriter::writeTypeTable() {
       TypeVals.push_back(getTypeID(VT->getElementType()));
       break;
     }
+#ifdef SCALABLE_MATRIX
+    case Type::ScalableMatrixTyID: {
+      ScalableMatrixType *VT = cast<ScalableMatrixType>(T);
+      // SCALABLE_MATRIX [numelts, numelts2, eltty]
+      Code = bitc::TYPE_CODE_SCALABLE_MATRIX;
+      TypeVals.push_back(VT->getElts());
+      TypeVals.push_back(VT->getElts2());
+      TypeVals.push_back(getTypeID(VT->getElementType()));
+      TypeVals.push_back(VT->getScalable());
+      break;
+    }
+#endif
     }
 
     // Emit the finished record.

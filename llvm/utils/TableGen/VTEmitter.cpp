@@ -32,7 +32,7 @@ public:
 void VTEmitter::run(raw_ostream &OS) {
   emitSourceFileHeader("ValueTypes Source Fragment", OS, Records);
 
-  std::array<const Record *, 256> VTsByNumber = {};
+  std::array<const Record *, 65536> VTsByNumber = {};
   auto ValueTypes = Records.getAllDerivedDefinitions("ValueType");
   for (auto *VT : ValueTypes) {
     auto Number = VT->getValueAsInt("Value");
@@ -62,7 +62,7 @@ void VTEmitter::run(raw_ostream &OS) {
     }
   };
 
-  OS << "#ifdef GET_VT_ATTR // (Ty, n, sz, Any, Int, FP, Vec, Sc)\n";
+  OS << "#ifdef GET_VT_ATTR // (Ty, n, sz, Any, Int, FP, Vec, Mat, Sc)\n";
   for (const auto *VT : VTsByNumber) {
     if (!VT)
       continue;
@@ -71,21 +71,32 @@ void VTEmitter::run(raw_ostream &OS) {
     bool IsInteger = VT->getValueAsInt("isInteger");
     bool IsFP = VT->getValueAsInt("isFP");
     bool IsVector = VT->getValueAsInt("isVector");
+    bool IsMatrix = VT->getValueAsInt("isMatrix");
     bool IsScalable = VT->getValueAsInt("isScalable");
 
     UpdateVTRange("INTEGER_FIXEDLEN_VECTOR_VALUETYPE", Name,
                   IsInteger && IsVector && !IsScalable);
     UpdateVTRange("INTEGER_SCALABLE_VECTOR_VALUETYPE", Name,
-                  IsInteger && IsScalable);
+                  IsInteger && IsVector && IsScalable);
     UpdateVTRange("FP_FIXEDLEN_VECTOR_VALUETYPE", Name,
                   IsFP && IsVector && !IsScalable);
-    UpdateVTRange("FP_SCALABLE_VECTOR_VALUETYPE", Name, IsFP && IsScalable);
+    UpdateVTRange("FP_SCALABLE_VECTOR_VALUETYPE", Name, IsFP && IsVector && IsScalable);
     UpdateVTRange("FIXEDLEN_VECTOR_VALUETYPE", Name, IsVector && !IsScalable);
-    UpdateVTRange("SCALABLE_VECTOR_VALUETYPE", Name, IsScalable);
+    UpdateVTRange("SCALABLE_VECTOR_VALUETYPE", Name, IsVector && IsScalable);
     UpdateVTRange("VECTOR_VALUETYPE", Name, IsVector);
-    UpdateVTRange("INTEGER_VALUETYPE", Name, IsInteger && !IsVector);
-    UpdateVTRange("FP_VALUETYPE", Name, IsFP && !IsVector);
-    UpdateVTRange("VALUETYPE", Name, Value < 224);
+    UpdateVTRange("INTEGER_FIXEDLEN_MATRIX_VALUETYPE", Name,
+                  IsInteger && IsMatrix && !IsScalable);
+    UpdateVTRange("INTEGER_SCALABLE_MATRIX_VALUETYPE", Name,
+                  IsInteger && IsMatrix && IsScalable);
+    UpdateVTRange("FP_FIXEDLEN_MATRIX_VALUETYPE", Name,
+                  IsFP && IsMatrix && !IsScalable);
+    UpdateVTRange("FP_SCALABLE_MATRIX_VALUETYPE", Name, IsFP && IsMatrix && IsScalable);
+    UpdateVTRange("FIXEDLEN_MATRIX_VALUETYPE", Name, IsMatrix && !IsScalable);
+    UpdateVTRange("SCALABLE_MATRIX_VALUETYPE", Name, IsMatrix && IsScalable);
+    UpdateVTRange("MATRIX_VALUETYPE", Name, IsMatrix);
+    UpdateVTRange("INTEGER_VALUETYPE", Name, IsInteger && !IsVector && !IsMatrix);
+    UpdateVTRange("FP_VALUETYPE", Name, IsFP && !IsVector && !IsMatrix);
+    UpdateVTRange("VALUETYPE", Name, Value < 64000);
 
     // clang-format off
     OS << "  GET_VT_ATTR("
@@ -96,6 +107,7 @@ void VTEmitter::run(raw_ostream &OS) {
        << (IsInteger ? Name[0] == 'i' ? 3 : 1 : 0) << ", "
        << (IsFP ? Name[0] == 'f' ? 3 : 1 : 0) << ", "
        << IsVector << ", "
+       << IsMatrix << ", "
        << IsScalable << ")\n";
     // clang-format on
   }
@@ -120,6 +132,24 @@ void VTEmitter::run(raw_ostream &OS) {
        << VT->getValueAsString("LLVMName") << ", "
        << VT->getValueAsInt("isScalable") << ", "
        << VT->getValueAsInt("nElem") << ", "
+       << ElTy->getName() << ", "
+       << ElTy->getValueAsInt("Size") << ")\n";
+    // clang-format on
+  }
+  OS << "#endif\n\n";
+
+  OS << "#ifdef GET_VT_MATATTR // (Ty, Sc, nElem, nElem2, ElTy, ElSz)\n";
+  for (const auto *VT : VTsByNumber) {
+    if (!VT || !VT->getValueAsInt("isMatrix"))
+      continue;
+    const auto *ElTy = VT->getValueAsDef("ElementType");
+    assert(ElTy);
+    // clang-format off
+    OS << "  GET_VT_MATATTR("
+       << VT->getValueAsString("LLVMName") << ", "
+       << VT->getValueAsInt("isScalable") << ", "
+       << VT->getValueAsInt("nElem") << ", "
+       << VT->getValueAsInt("nElem2") << ", "
        << ElTy->getName() << ", "
        << ElTy->getValueAsInt("Size") << ")\n";
     // clang-format on

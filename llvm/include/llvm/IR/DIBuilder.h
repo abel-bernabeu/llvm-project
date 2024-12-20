@@ -569,6 +569,16 @@ namespace llvm {
     /// \param Subscripts   Subscripts.
     DICompositeType *createVectorType(uint64_t Size, uint32_t AlignInBits,
                                       DIType *Ty, DINodeArray Subscripts);
+#ifdef SCALABLE_MATRIX
+    /// Create debugging information entry for a matrix type.
+    /// \param Size         Matrix size in first dimension.
+    /// \param Size         Matrix size in second dimension.
+    /// \param AlignInBits  Alignment.
+    /// \param Ty           Element type.
+    /// \param Subscripts   Subscripts.
+    DICompositeType *createScalableMatrixType(uint64_t Size, uint64_t Size2, uint32_t AlignInBits,
+                                              DIType *Ty, DINodeArray Subscripts);
+#endif
 
     /// Create debugging information entry for an
     /// enumeration.

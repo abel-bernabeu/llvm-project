@@ -490,7 +490,8 @@ public:
   /// Should this stack ID be considered in MaxAlignment.
   bool contributesToMaxAlignment(uint8_t StackID) {
     return StackID == TargetStackID::Default ||
-           StackID == TargetStackID::ScalableVector;
+           StackID == TargetStackID::ScalableVector ||
+           StackID == TargetStackID::ScalableMatrix;
   }
 
   /// setObjectAlignment - Change the alignment of the specified stack object.
@@ -499,7 +500,8 @@ public:
            "Invalid Object Idx!");
     Objects[ObjectIdx + NumFixedObjects].Alignment = Alignment;
 
-    // Only ensure max alignment for the default and scalable vector stack.
+    // Only ensure max alignment for the default, scalable vector and scalable
+    // matrix stack ids.
     uint8_t StackID = getStackID(ObjectIdx);
     if (contributesToMaxAlignment(StackID))
       ensureMaxAlignment(Alignment);

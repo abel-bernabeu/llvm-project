@@ -116,11 +116,16 @@ namespace Intrinsic {
       Metadata,
       Half,
       BFloat,
+#ifdef FP8_DATATYPES
+      BF8,
+      HF8,
+#endif
       Float,
       Double,
       Quad,
       Integer,
       Vector,
+      Matrix,
       Pointer,
       Struct,
       Argument,
@@ -145,6 +150,13 @@ namespace Intrinsic {
       unsigned Struct_NumElements;
       unsigned Argument_Info;
       ElementCount Vector_Width;
+#ifdef SCALABLE_MATRIX
+      struct {
+        unsigned NumElems;
+        unsigned NumElems2;
+        bool IsScalable;
+      } MatrixData;
+#endif
     };
 
     // AK_% : Defined in Intrinsics.td
@@ -199,6 +211,15 @@ namespace Intrinsic {
       Result.Vector_Width = ElementCount::get(Width, IsScalable);
       return Result;
     }
+ #ifdef SCALABLE_MATRIX
+    static IITDescriptor getMatrix(unsigned NumElems, unsigned NumElems2, bool IsScalable) {
+      IITDescriptor Result = {Matrix, {0}};
+      Result.MatrixData.NumElems = NumElems;
+      Result.MatrixData.NumElems2 = NumElems2;
+      Result.MatrixData.IsScalable = IsScalable;
+      return Result;
+    }
+  #endif
   };
 
   /// Return the IIT table descriptor for the specified intrinsic into an array

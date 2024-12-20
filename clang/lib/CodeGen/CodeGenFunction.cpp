@@ -241,6 +241,9 @@ TypeEvaluationKind CodeGenFunction::getEvaluationKind(QualType type) {
     case Type::RValueReference:
     case Type::MemberPointer:
     case Type::Vector:
+#ifdef SCALABLE_MATRIX
+    case Type::ScalableMatrix:
+#endif
     case Type::ExtVector:
     case Type::ConstantMatrix:
     case Type::FunctionProto:
@@ -2297,6 +2300,9 @@ void CodeGenFunction::EmitVariablyModifiedType(QualType type) {
     case Type::Builtin:
     case Type::Complex:
     case Type::Vector:
+#ifdef SCALABLE_MATRIX
+    case Type::ScalableMatrix:
+#endif
     case Type::ExtVector:
     case Type::ConstantMatrix:
     case Type::Record:

@@ -1391,6 +1391,10 @@ bool llvm::isLibFuncEmittable(const Module *M, const TargetLibraryInfo *TLI,
 bool llvm::hasFloatFn(const Module *M, const TargetLibraryInfo *TLI, Type *Ty,
                       LibFunc DoubleFn, LibFunc FloatFn, LibFunc LongDoubleFn) {
   switch (Ty->getTypeID()) {
+#ifdef FP8_DATATYPES
+  case Type::BF8TyID:
+  case Type::HF8TyID:
+#endif
   case Type::HalfTyID:
     return false;
   case Type::FloatTyID:
@@ -1409,6 +1413,10 @@ StringRef llvm::getFloatFn(const Module *M, const TargetLibraryInfo *TLI,
          "Cannot get name for unavailable function!");
 
   switch (Ty->getTypeID()) {
+#ifdef FP8_DATATYPES
+  case Type::BF8TyID:
+  case Type::HF8TyID:
+#endif
   case Type::HalfTyID:
     llvm_unreachable("No name for HalfTy!");
   case Type::FloatTyID:

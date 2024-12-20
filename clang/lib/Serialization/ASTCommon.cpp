@@ -250,6 +250,13 @@ serialization::TypeIdxFromBuiltin(const BuiltinType *BT) {
     ID = PREDEF_TYPE_##Id##_ID;                                                \
     break;
 #include "clang/Basic/RISCVVTypes.def"
+#ifdef SCALABLE_MATRIX
+#define SMAT_BASE(Name, Id, SingletonId)                                       \
+  case BuiltinType::Id:                                                        \
+    ID = PREDEF_TYPE_##Id##_ID;                                                \
+    break;
+#include "clang/Basic/ScalableMatrixTypes.def"
+#endif
 #define WASM_TYPE(Name, Id, SingletonId)                                       \
   case BuiltinType::Id:                                                        \
     ID = PREDEF_TYPE_##Id##_ID;                                                \
@@ -270,6 +277,14 @@ serialization::TypeIdxFromBuiltin(const BuiltinType *BT) {
   case BuiltinType::OMPIterator:
     ID = PREDEF_TYPE_OMP_ITERATOR;
     break;
+#ifdef FP8_DATATYPES
+  case BuiltinType::BF8:
+    ID = PREDEF_TYPE_BFLOAT8_ID;
+    break;
+  case BuiltinType::HF8:
+    ID = PREDEF_TYPE_HF8_ID;
+    break;
+#endif
   case BuiltinType::BFloat16:
     ID = PREDEF_TYPE_BFLOAT16_ID;
     break;

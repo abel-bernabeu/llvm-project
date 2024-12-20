@@ -347,6 +347,10 @@ CodeGenModule::CodeGenModule(ASTContext &C,
   Int64Ty = llvm::Type::getInt64Ty(LLVMContext);
   HalfTy = llvm::Type::getHalfTy(LLVMContext);
   BFloatTy = llvm::Type::getBFloatTy(LLVMContext);
+#ifdef FP8_DATATYPES
+  BF8Ty = llvm::Type::getBF8Ty(LLVMContext);
+  HF8Ty = llvm::Type::getHF8Ty(LLVMContext);
+#endif
   FloatTy = llvm::Type::getFloatTy(LLVMContext);
   DoubleTy = llvm::Type::getDoubleTy(LLVMContext);
   PointerWidthInBits = C.getTargetInfo().getPointerWidth(LangAS::Default);

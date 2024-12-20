@@ -38,6 +38,10 @@ Type *Type::getPrimitiveType(LLVMContext &C, TypeID IDNumber) {
   case VoidTyID      : return getVoidTy(C);
   case HalfTyID      : return getHalfTy(C);
   case BFloatTyID    : return getBFloatTy(C);
+#ifdef FP8_DATATYPES
+  case BF8TyID       : return getBF8Ty(C);
+  case HF8TyID       : return getHF8Ty(C);
+#endif
   case FloatTyID     : return getFloatTy(C);
   case DoubleTyID    : return getDoubleTy(C);
   case X86_FP80TyID  : return getX86_FP80Ty(C);
@@ -57,18 +61,61 @@ bool Type::isIntegerTy(unsigned Bitwidth) const {
   return isIntegerTy() && cast<IntegerType>(this)->getBitWidth() == Bitwidth;
 }
 
-bool Type::isScalableTy() const {
+bool Type::isScalableTy(TypeID *InnerDataTypeIDPtr) const {
   if (const auto *ATy = dyn_cast<ArrayType>(this))
-    return ATy->getElementType()->isScalableTy();
+    return ATy->getElementType()->isScalableTy(InnerDataTypeIDPtr);
   if (const auto *STy = dyn_cast<StructType>(this)) {
     SmallPtrSet<Type *, 4> Visited;
-    return STy->containsScalableVectorType(&Visited);
+    bool Scalable = STy->containsScalableVectorType(&Visited);
+    if (Scalable && InnerDataTypeIDPtr != nullptr) {
+      //       SW-21204: 
+      //       for structs with scalable vectors or matrices we should
+      //       be able to return their scalable types as set of TypeID
+      //       values. For the time being we just return true and a type
+      //       that is not ScalableMatrixTyID, which suffices for the caller
+      //       to assume it is not a scalable matrix and must be a scalable
+      //       vector. This assumption is broken for scalable matrices,
+      //       which can not yet be used within structs.
+      *InnerDataTypeIDPtr = Type::TypeID::ScalableVectorTyID;
+    }
+    return Scalable;
   }
-  return getTypeID() == ScalableVectorTyID || isScalableTargetExtTy();
+  bool Scalable = getTypeID() == ScalableVectorTyID || getTypeID() == ScalableMatrixTyID || isScalableTargetExtTy();
+  if (Scalable && InnerDataTypeIDPtr != nullptr) {
+    *InnerDataTypeIDPtr = getTypeID();
+  }
+  return Scalable;
+}
+
+TypeSize::ScaleID Type::getScaleID() const {
+  if (const auto *ATy = dyn_cast<ArrayType>(this))
+    return ATy->getElementType()->getScaleID();
+
+  TypeSize::ScaleID Scale = TypeSize::ScaleID::None;
+  if (const auto *STy = dyn_cast<StructType>(this)) {
+    // SW-21204: Handle members with scale other than vscale (scalable matrices)
+    SmallPtrSet<Type *, 4> Visited;
+    bool Scalable = STy->containsScalableVectorType(&Visited);
+    if (Scalable)
+      Scale = TypeSize::ScaleID::V;
+    return Scale;
+  }
+
+  if ((getTypeID() == ScalableVectorTyID) || isScalableTargetExtTy())
+    Scale = TypeSize::ScaleID::V;
+  else if (getTypeID() == ScalableMatrixTyID)
+    Scale = TypeSize::ScaleID::MN;
+  return Scale;
 }
 
 const fltSemantics &Type::getFltSemantics() const {
   switch (getTypeID()) {
+#if FP8_DATATYPES
+  case BF8TyID:
+    return APFloat::Float8E5M2();
+  case HF8TyID:
+    return APFloat::Float8E4M3FN();
+#endif
   case HalfTyID: return APFloat::IEEEhalf();
   case BFloatTyID: return APFloat::BFloat();
   case FloatTyID: return APFloat::IEEEsingle();
@@ -92,7 +139,14 @@ bool Type::isScalableTargetExtTy() const {
 
 Type *Type::getFloatingPointTy(LLVMContext &C, const fltSemantics &S) {
   Type *Ty;
-  if (&S == &APFloat::IEEEhalf())
+#ifdef FP8_DATATYPES
+  if (&S == &APFloat::Float8E5M2())
+    Ty = Type::getBF8Ty(C);
+  else if (&S == &APFloat::Float8E4M3FN())
+    Ty = Type::getHF8Ty(C);
+  else
+#endif
+      if (&S == &APFloat::IEEEhalf())
     Ty = Type::getHalfTy(C);
   else if (&S == &APFloat::BFloat())
     Ty = Type::getBFloatTy(C);
@@ -120,6 +174,13 @@ bool Type::canLosslesslyBitCastTo(Type *Ty) const {
   if (!this->isFirstClassType() || !Ty->isFirstClassType())
     return false;
 
+#ifdef SCALABLE_MATRIX
+  // Matrix -> Matrix conversions are always lossless if the two matrix types
+  // have the same size, otherwise not.
+  if (isa<ScalableMatrixType>(this) && isa<ScalableMatrixType>(Ty))
+    return getPrimitiveSizeInBits() == Ty->getPrimitiveSizeInBits();
+
+#endif
   // Vector -> Vector conversions are always lossless if the two vector types
   // have the same size, otherwise not.
   if (isa<VectorType>(this) && isa<VectorType>(Ty))
@@ -169,6 +230,12 @@ TypeSize Type::getPrimitiveSizeInBits() const {
     return TypeSize::getFixed(16);
   case Type::BFloatTyID:
     return TypeSize::getFixed(16);
+#ifdef FP8_DATATYPES
+  case Type::BF8TyID:
+    return TypeSize::getFixed(8);
+  case Type::HF8TyID:
+    return TypeSize::getFixed(8);
+#endif
   case Type::FloatTyID:
     return TypeSize::getFixed(32);
   case Type::DoubleTyID:
@@ -193,9 +260,21 @@ TypeSize Type::getPrimitiveSizeInBits() const {
     assert(!ETS.isScalable() && "Vector type should have fixed-width elements");
     return {ETS.getFixedValue() * EC.getKnownMinValue(), EC.isScalable()};
   }
+    break;
+#ifdef SCALABLE_MATRIX
+  case Type::ScalableMatrixTyID: {
+    const ScalableMatrixType *MTy = cast<ScalableMatrixType>(this);
+    auto MinElementCount = MTy->getNumElts() * MTy->getNumElts2();
+    TypeSize ETS = MTy->getElementType()->getPrimitiveSizeInBits();
+    assert(!ETS.isScalable() && "Matrix type should have fixed-width elements");
+    return {ETS.getFixedValue() * MinElementCount, MTy->getScalable() ? TypeSize::ScaleID::MN : TypeSize::ScaleID::None};
+  }
+    break;
+#endif
   default:
     return TypeSize::getFixed(0);
   }
+  return TypeSize::getFixed(0);
 }
 
 unsigned Type::getScalarSizeInBits() const {
@@ -207,6 +286,10 @@ int Type::getFPMantissaWidth() const {
   if (auto *VTy = dyn_cast<VectorType>(this))
     return VTy->getElementType()->getFPMantissaWidth();
   assert(isFloatingPointTy() && "Not a floating point type!");
+#ifdef FP8_DATATYPES
+  if (getTypeID() == BF8TyID) return 5;
+  if (getTypeID() == HF8TyID) return 4;
+#endif
   if (getTypeID() == HalfTyID) return 11;
   if (getTypeID() == BFloatTyID) return 8;
   if (getTypeID() == FloatTyID) return 24;
@@ -224,6 +307,9 @@ bool Type::isSizedDerivedType(SmallPtrSetImpl<Type*> *Visited) const {
   if (auto *VTy = dyn_cast<VectorType>(this))
     return VTy->getElementType()->isSized(Visited);
 
+  if (auto *VTy = dyn_cast<ScalableMatrixType>(this))
+    return VTy->getElementType()->isSized(Visited);
+
   if (auto *TTy = dyn_cast<TargetExtType>(this))
     return TTy->getLayoutType()->isSized(Visited);
 
@@ -238,6 +324,10 @@ Type *Type::getVoidTy(LLVMContext &C) { return &C.pImpl->VoidTy; }
 Type *Type::getLabelTy(LLVMContext &C) { return &C.pImpl->LabelTy; }
 Type *Type::getHalfTy(LLVMContext &C) { return &C.pImpl->HalfTy; }
 Type *Type::getBFloatTy(LLVMContext &C) { return &C.pImpl->BFloatTy; }
+#ifdef FP8_DATATYPES
+Type *Type::getBF8Ty(LLVMContext &C) { return &C.pImpl->BF8Ty; }
+Type *Type::getHF8Ty(LLVMContext &C) { return &C.pImpl->HF8Ty; }
+#endif
 Type *Type::getFloatTy(LLVMContext &C) { return &C.pImpl->FloatTy; }
 Type *Type::getDoubleTy(LLVMContext &C) { return &C.pImpl->DoubleTy; }
 Type *Type::getMetadataTy(LLVMContext &C) { return &C.pImpl->MetadataTy; }
@@ -683,6 +773,41 @@ VectorType *VectorType::get(Type *ElementType, ElementCount EC) {
 bool VectorType::isValidElementType(Type *ElemTy) {
   return ElemTy->isIntegerTy() || ElemTy->isFloatingPointTy() ||
          ElemTy->isPointerTy() || ElemTy->getTypeID() == TypedPointerTyID;
+}
+
+//===----------------------------------------------------------------------===//
+//                      ScalableMatrixType Implementation
+//===----------------------------------------------------------------------===//
+
+/// Return true if the specified type is valid as a element type.
+bool ScalableMatrixType::isValidElementType(Type *ElemTy) {
+  return ElemTy->isIntegerTy() || ElemTy->isFloatingPointTy();
+}
+
+ScalableMatrixType::ScalableMatrixType(Type *ElTy, unsigned NumElts,
+                                       unsigned NumElts2, bool Scalable)
+    : Type(ElTy->getContext(), ScalableMatrixTyID), ContainedType(ElTy),
+      NumElts(NumElts), NumElts2(NumElts2), Scalable(Scalable) {
+  ContainedTys = &ContainedType;
+  NumContainedTys = 1;
+}
+
+ScalableMatrixType *ScalableMatrixType::get(Type *ElementType, unsigned NumElts,
+                                            unsigned NumElts2, bool Scalable) {
+  assert(NumElts > 0 &&
+         "First dimension of a ScalableMatrixType must be greater than 0");
+  assert(NumElts2 > 0 &&
+         "Second dimension of a ScalableMatrixType must be greater than 0");
+
+  LLVMContextImpl *pImpl = ElementType->getContext().pImpl;
+  ScalableMatrixType *&Entry =
+      ElementType->getContext().pImpl->ScalableMatrixTypes[std::make_tuple(
+          ElementType, NumElts, NumElts2, Scalable)];
+
+  if (!Entry)
+    Entry = new (pImpl->Alloc)
+        ScalableMatrixType(ElementType, NumElts, NumElts2, Scalable);
+  return cast<ScalableMatrixType>(Entry);
 }
 
 //===----------------------------------------------------------------------===//

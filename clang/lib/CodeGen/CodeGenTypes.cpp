@@ -221,6 +221,12 @@ static llvm::Type *getTypeForFormat(llvm::LLVMContext &VMContext,
   }
   if (&format == &llvm::APFloat::BFloat())
     return llvm::Type::getBFloatTy(VMContext);
+#ifdef FP8_DATATYPES
+  if (&format == &llvm::APFloat::Float8E5M2())
+    return llvm::Type::getBF8Ty(VMContext);
+  if (&format == &llvm::APFloat::Float8E4M3FN())
+    return llvm::Type::getHF8Ty(VMContext);
+#endif
   if (&format == &llvm::APFloat::IEEEsingle())
     return llvm::Type::getFloatTy(VMContext);
   if (&format == &llvm::APFloat::IEEEdouble())
@@ -410,6 +416,10 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
     case BuiltinType::LongDouble:
       LongDoubleReferenced = true;
       LLVM_FALLTHROUGH;
+#ifdef FP8_DATATYPES
+    case BuiltinType::BF8:
+    case BuiltinType::HF8:
+#endif
     case BuiltinType::BFloat16:
     case BuiltinType::Float:
     case BuiltinType::Double:
@@ -526,6 +536,17 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
                                              Info.EC.getKnownMinValue() *
                                                  Info.NumVectors);
       }
+#ifdef SCALABLE_MATRIX
+#define SMAT_BASE(Name, Id, SingletonId) case BuiltinType::Id:
+#include "clang/Basic/ScalableMatrixTypes.def"
+      {
+        ASTContext::BuiltinScalableMatrixTypeInfo Info =
+            Context.getBuiltinScalableMatrixTypeInfo(cast<BuiltinType>(Ty));
+        return llvm::ScalableMatrixType::get(ConvertType(Info.ElementType),
+                                             Info.NumRows, Info.NumCols, Info.Scalable);
+      }
+#endif
+
 #define WASM_REF_TYPE(Name, MangledName, Id, SingletonId, AS)                  \
   case BuiltinType::Id: {                                                      \
     if (BuiltinType::Id == BuiltinType::WasmExternRef)                         \
@@ -621,6 +642,15 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
                                    MT->getNumRows() * MT->getNumColumns());
     break;
   }
+#ifdef SCALABLE_MATRIX
+  case Type::ScalableMatrix: {
+    const ScalableMatrixType *MT = cast<ScalableMatrixType>(Ty);
+    ResultType =
+        llvm::ScalableMatrixType::get(ConvertType(MT->getElementType()),
+                                   MT->getNumRows(), MT->getNumColumns(), MT->getScalable());
+    break;
+  }
+#endif
   case Type::FunctionNoProto:
   case Type::FunctionProto:
     ResultType = ConvertFunctionTypeInternal(T);

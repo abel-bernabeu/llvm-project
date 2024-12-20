@@ -471,7 +471,11 @@ public:
   /// For example, returns 5 for i36 and 10 for x86_fp80.
   TypeSize getTypeStoreSize(Type *Ty) const {
     TypeSize BaseSize = getTypeSizeInBits(Ty);
+#ifdef SCALABLE_MATRIX
+    return {divideCeil(BaseSize.getKnownMinValue(), 8), BaseSize.getScale()};
+#else
     return {divideCeil(BaseSize.getKnownMinValue(), 8), BaseSize.isScalable()};
+#endif
   }
 
   /// Returns the maximum number of bits that may be overwritten by
@@ -687,6 +691,12 @@ inline TypeSize DataLayout::getTypeSizeInBits(Type *Ty) const {
     return getStructLayout(cast<StructType>(Ty))->getSizeInBits();
   case Type::IntegerTyID:
     return TypeSize::getFixed(Ty->getIntegerBitWidth());
+#ifdef FP8_DATATYPES
+  case Type::BF8TyID:
+    return TypeSize::getFixed(8);
+  case Type::HF8TyID:
+    return TypeSize::getFixed(8);
+#endif
   case Type::HalfTyID:
   case Type::BFloatTyID:
     return TypeSize::getFixed(16);
@@ -712,6 +722,17 @@ inline TypeSize DataLayout::getTypeSizeInBits(Type *Ty) const {
                        getTypeSizeInBits(VTy->getElementType()).getFixedValue();
     return TypeSize(MinBits, EltCnt.isScalable());
   }
+#ifdef SCALABLE_MATRIX
+  case Type::ScalableMatrixTyID: {
+    ScalableMatrixType *VTy = cast<ScalableMatrixType>(Ty);
+    auto EltTy = VTy->getElementType();
+    auto NumElts = VTy->getNumElts();
+    auto NumElts2 = VTy->getNumElts2();  
+    uint64_t MinBits = NumElts * NumElts2 *
+                       getTypeSizeInBits(EltTy).getFixedValue();
+    return TypeSize(MinBits, VTy->getScalable() ? TypeSize::ScaleID::MN : TypeSize::ScaleID::None);
+  }
+#endif
   case Type::TargetExtTyID: {
     Type *LayoutTy = cast<TargetExtType>(Ty)->getLayoutType();
     return getTypeSizeInBits(LayoutTy);

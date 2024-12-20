@@ -2347,6 +2347,14 @@ Error BitcodeReader::parseTypeTableBody() {
     case bitc::TYPE_CODE_BFLOAT:    // BFLOAT
       ResultTy = Type::getBFloatTy(Context);
       break;
+#ifdef FP8_DATATYPES
+    case bitc::TYPE_CODE_BF8:    // BF8
+      ResultTy = Type::getBF8Ty(Context);
+      break;
+    case bitc::TYPE_CODE_HF8:    // HF8
+      ResultTy = Type::getHF8Ty(Context);
+      break;
+#endif
     case bitc::TYPE_CODE_FLOAT:     // FLOAT
       ResultTy = Type::getFloatTy(Context);
       break;
@@ -2561,7 +2569,7 @@ Error BitcodeReader::parseTypeTableBody() {
       ContainedIDs.push_back(Record[1]);
       ResultTy = ArrayType::get(ResultTy, Record[0]);
       break;
-    case bitc::TYPE_CODE_VECTOR:    // VECTOR: [numelts, eltty] or
+    case bitc::TYPE_CODE_VECTOR: {  // VECTOR: [numelts, eltty] or
                                     //         [numelts, eltty, scalable]
       if (Record.size() < 2)
         return error("Invalid vector type record");
@@ -2574,6 +2582,24 @@ Error BitcodeReader::parseTypeTableBody() {
       ContainedIDs.push_back(Record[1]);
       ResultTy = VectorType::get(ResultTy, Record[0], Scalable);
       break;
+    }
+#ifdef SCALABLE_MATRIX
+    case bitc::TYPE_CODE_SCALABLE_MATRIX: { // SCALABLE_MATRIX: [numelts, numelts2, eltty, scalable]
+      if (Record.size() != 4)
+        return error("Invalid scalable matrix type record");
+      if (Record[0] == 0)
+        return error("Invalid size for first dimension of scalable matrix");
+      if (Record[1] == 0)
+        return error("Invalid size for second dimension of scalable matrix");
+      ResultTy = getTypeByID(Record[2]);
+      if (!ResultTy || !VectorType::isValidElementType(ResultTy))
+        return error("Invalid type");
+      ContainedIDs.push_back(Record[2]);
+      bool Scalable = Record[3] != 0;
+      ResultTy = ScalableMatrixType::get(ResultTy, Record[0], Record[1], Scalable);
+      break;
+    }
+#endif
     }
 
     if (NumRecords >= TypeList.size())
@@ -3074,6 +3100,15 @@ Error BitcodeReader::parseConstants() {
     case bitc::CST_CODE_FLOAT: {    // FLOAT: [fpval]
       if (Record.empty())
         return error("Invalid float const record");
+#ifdef FP8_DATATYPES
+      if (CurTy->isBF8Ty())
+        V = ConstantFP::get(Context, APFloat(APFloat::Float8E5M2(),
+                                             APInt(8, (uint8_t)Record[0])));
+      else if (CurTy->isHF8Ty())
+        V = ConstantFP::get(Context, APFloat(APFloat::Float8E4M3FN(),
+                                             APInt(8, (uint8_t)Record[0])));
+      else
+#endif
       if (CurTy->isHalfTy())
         V = ConstantFP::get(Context, APFloat(APFloat::IEEEhalf(),
                                              APInt(16, (uint16_t)Record[0])));

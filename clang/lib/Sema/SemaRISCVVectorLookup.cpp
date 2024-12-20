@@ -114,6 +114,14 @@ static QualType RVVType2Qual(ASTContext &Context, const RVVType *Type) {
   case ScalarTypeKind::BFloat:
     QT = Context.BFloat16Ty;
     break;
+#ifdef FP8_DATATYPES
+  case ScalarTypeKind::BF8:
+    QT = Context.BF8Ty;
+    break;
+  case ScalarTypeKind::HF8:
+    QT = Context.HF8Ty;
+    break;
+#endif
   case ScalarTypeKind::Float:
     switch (Type->getElementBitwidth()) {
     case 64:

@@ -1603,6 +1603,18 @@ public:
                               VTy->getElementCount());
     }
 
+#ifdef SCALABLE_MATRIX
+    if (auto *MTy = dyn_cast<ScalableMatrixType>(Ty)) {
+      Type *EltTy = MTy->getElementType();
+      // Lower vectors of pointers to native pointer types.
+      if (auto *PTy = dyn_cast<PointerType>(EltTy)) {
+        EVT PointerTy(getPointerTy(DL, PTy->getAddressSpace()));
+        EltTy = PointerTy.getTypeForEVT(Ty->getContext());
+      }
+      return EVT::getMatrixVT(Ty->getContext(), EVT::getEVT(EltTy, false),
+                              MTy->getNumElts(), MTy->getNumElts2(), MTy->getScalable());
+    }
+#endif
     return EVT::getEVT(Ty, AllowUnknown);
   }
 

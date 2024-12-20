@@ -1549,7 +1549,11 @@ public:
   ConstantInt *TheFalseVal = nullptr;
 
   // Basic type instances.
+#ifdef FP8_DATATYPES
+  Type VoidTy, LabelTy, HalfTy, BFloatTy, BF8Ty, HF8Ty, FloatTy, DoubleTy, MetadataTy,
+#else
   Type VoidTy, LabelTy, HalfTy, BFloatTy, FloatTy, DoubleTy, MetadataTy,
+#endif
       TokenTy;
   Type X86_FP80Ty, FP128Ty, PPC_FP128Ty, X86_MMXTy, X86_AMXTy;
   IntegerType Int1Ty, Int8Ty, Int16Ty, Int32Ty, Int64Ty, Int128Ty;
@@ -1573,6 +1577,7 @@ public:
 
   DenseMap<std::pair<Type *, uint64_t>, ArrayType *> ArrayTypes;
   DenseMap<std::pair<Type *, ElementCount>, VectorType *> VectorTypes;
+  DenseMap<std::tuple<Type *, unsigned, unsigned, bool>, ScalableMatrixType *> ScalableMatrixTypes;
   PointerType *AS0PointerType = nullptr; // AddrSpace = 0
   DenseMap<unsigned, PointerType *> PointerTypes;
   DenseMap<std::pair<Type *, unsigned>, PointerType *> LegacyPointerTypes;

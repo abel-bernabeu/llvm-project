@@ -259,6 +259,25 @@ let Class = DependentSizedMatrixType in {
   }]>;
 }
 
+let Class = ScalableMatrixType in {
+  def : Property<"elementType", QualType> {
+    let Read = [{ node->getElementType() }];
+  }
+  def : Property<"numRows", UInt32> {
+    let Read = [{ node->getNumRows() }];
+  }
+  def : Property<"numColumns", UInt32> {
+    let Read = [{ node->getNumColumns() }];
+  }
+  def : Property<"scalable", Bool> {
+    let Read = [{ node->getScalable() }];
+  }
+
+  def : Creator<[{
+    return ctx.getScalableMatrixType(elementType, numRows, numColumns, scalable);
+  }]>;
+}
+
 let Class = FunctionType in {
   def : Property<"returnType", QualType> {
     let Read = [{ node->getReturnType() }];
@@ -816,6 +835,11 @@ let Class = BuiltinType in {
 #define RVV_TYPE(NAME, ID, SINGLETON_ID) \
       case BuiltinType::ID: return ctx.SINGLETON_ID;
 #include "clang/Basic/RISCVVTypes.def"
+#ifdef SCALABLE_MATRIX
+#define SMAT_BASE(NAME, ID, SINGLETON_ID) \
+      case BuiltinType::ID: return ctx.SINGLETON_ID;
+#include "clang/Basic/ScalableMatrixTypes.def"
+#endif
 
 #define WASM_TYPE(NAME, ID, SINGLETON_ID) \
       case BuiltinType::ID: return ctx.SINGLETON_ID;

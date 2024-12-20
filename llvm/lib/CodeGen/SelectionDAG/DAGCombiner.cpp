@@ -2996,6 +2996,23 @@ SDValue DAGCombiner::visitADD(SDNode *N) {
     return DAG.getNode(ISD::ADD, DL, VT, N0.getOperand(0), VS);
   }
 
+  // Fold (add (mnscale * C0), (mnscale * C1)) to (mnscale * (C0 + C1)).
+  if (N0.getOpcode() == ISD::MNSCALE && N1.getOpcode() == ISD::MNSCALE) {
+    const APInt &C0 = N0->getConstantOperandAPInt(0);
+    const APInt &C1 = N1->getConstantOperandAPInt(0);
+    return DAG.getMNScale(DL, VT, C0 + C1);
+  }
+
+  // fold a+mnscale(c1)+mnscale(c2) -> a+mnscale(c1+c2)
+  if (N0.getOpcode() == ISD::ADD &&
+      N0.getOperand(1).getOpcode() == ISD::MNSCALE &&
+      N1.getOpcode() == ISD::MNSCALE) {
+    const APInt &MNS0 = N0.getOperand(1)->getConstantOperandAPInt(0);
+    const APInt &MNS1 = N1->getConstantOperandAPInt(0);
+    SDValue MNS = DAG.getMNScale(DL, VT, MNS0 + MNS1);
+    return DAG.getNode(ISD::ADD, DL, VT, N0.getOperand(0), MNS);
+  }
+
   // Fold (add step_vector(c1), step_vector(c2)  to step_vector(c1+c2))
   if (N0.getOpcode() == ISD::STEP_VECTOR &&
       N1.getOpcode() == ISD::STEP_VECTOR) {
@@ -18684,7 +18701,10 @@ SDValue DAGCombiner::ForwardStoreValueToDirectLoad(LoadSDNode *LD) {
       continue;
     if (STMemType != LDMemType) {
       // TODO: Support vectors? This requires extract_subvector/bitcast.
-      if (!STMemType.isVector() && !LDMemType.isVector() &&
+      if (!STMemType.isVector() && !LDMemType.isVector()&&
+#ifdef SCALABLE_MATRIX
+          !STMemType.isMatrix() && !LDMemType.isMatrix() &&
+#endif
           STMemType.isInteger() && LDMemType.isInteger())
         Val = DAG.getNode(ISD::TRUNCATE, SDLoc(LD), LDMemType, Val);
       else
@@ -19285,10 +19305,10 @@ bool DAGCombiner::SliceUpLoad(SDNode *N) {
       !LD->getValueType(0).isInteger())
     return false;
 
-  // The algorithm to split up a load of a scalable vector into individual
+  // The algorithm to split up a load of a scalable vector or matrix into individual
   // elements currently requires knowing the length of the loaded type,
-  // so will need adjusting to work on scalable vectors.
-  if (LD->getValueType(0).isScalableVector())
+  // so will need adjusting to work on scalable vectors or matrices.
+  if (LD->getValueType(0).isScalableVector() || LD->getValueType(0).isScalableMatrix())
     return false;
 
   // Keep track of already used bits to detect overlapping values.
@@ -28159,7 +28179,7 @@ bool DAGCombiner::parallelizeChainedStores(StoreSDNode *St) {
                    std::monostate{});
 
   while (StoreSDNode *Chain = dyn_cast<StoreSDNode>(STChain->getChain())) {
-    if (Chain->getMemoryVT().isScalableVector())
+    if (Chain->getMemoryVT().isScalableVector() || Chain->getMemoryVT().isScalableMatrix())
       return false;
 
     // If the chain has more than one use, then we can't reorder the mem ops.

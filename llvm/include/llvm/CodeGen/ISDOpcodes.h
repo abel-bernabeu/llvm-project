@@ -1320,6 +1320,15 @@ enum NodeType {
   /// multiplier that is applied to the runtime value.
   VSCALE,
 
+#ifdef SCALABLE_MATRIX
+  /// {M,N,MN}SCALE(IMM) - Returns the runtime scaling factors used to calculate the
+  /// number of elements within a scalable matrix dimension, or the product of both
+  /// dimensions. IMM is a constant integer multiplier that is applied to the
+  /// runtime value.
+  MSCALE,
+  NSCALE,
+  MNSCALE,
+#endif
   /// Generic reduction nodes. These nodes represent horizontal vector
   /// reduction operations, producing a scalar result.
   /// The SEQ variants perform reductions in sequential order. The first

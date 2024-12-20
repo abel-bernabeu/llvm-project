@@ -114,6 +114,10 @@ std::string getBBSections();
 
 unsigned getTLSSize();
 
+#ifdef SCALABLE_MATRIX
+unsigned getScalableMatrixSizeBits();
+#endif
+
 bool getEmulatedTLS();
 std::optional<bool> getExplicitEmulatedTLS();
 

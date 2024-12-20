@@ -2852,8 +2852,14 @@ enum CXTypeKind {
   CXType_ULongAccum = 38,
   CXType_BFloat16 = 39,
   CXType_Ibm128 = 40,
-  CXType_FirstBuiltin = CXType_Void,
+#ifdef FP8_DATATYPES
+  CXType_BF8 = 41,
+  CXType_HF8 = 42,
+  CXType_LastBuiltin = CXType_HF8,
+#else
   CXType_LastBuiltin = CXType_Ibm128,
+#endif
+  CXType_FirstBuiltin = CXType_Void,
 
   CXType_Complex = 100,
   CXType_Pointer = 101,

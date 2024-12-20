@@ -847,6 +847,53 @@ llvm::DIType *CGDebugInfo::CreateType(const BuiltinType *BT) {
                                        SubscriptArray);
     }
 
+#ifdef SCALABLE_MATRIX
+    // SW-21238: implement here the needed DW expression for xettensor
+#define SMAT_BASE(Name, Id, SingletonId) case BuiltinType::Id:
+#include "clang/Basic/ScalableMatrixTypes.def"
+    {
+      ASTContext::BuiltinScalableMatrixTypeInfo Info =
+          CGM.getContext().getBuiltinScalableMatrixTypeInfo(BT);
+
+      unsigned ElementCount = Info.NumRows * Info.NumCols;
+      unsigned SEW = CGM.getContext().getTypeSize(Info.ElementType);
+
+      unsigned FixedSize = ElementCount * SEW;
+      unsigned LMUL = FixedSize / 64;
+
+      // Element count = (VLENB / SEW) x LMUL
+      SmallVector<uint64_t, 12> Expr(
+          // The DW_OP_bregx operation has two operands: a register which is
+          // specified by an unsigned LEB128 number, followed by a signed LEB128
+          // offset.
+          {llvm::dwarf::DW_OP_bregx, // Read the contents of a register.
+           4096 + 0xC22,             // RISC-V VLENB CSR register.
+           0, // Offset for DW_OP_bregx. It is dummy here.
+           llvm::dwarf::DW_OP_constu,
+           SEW / 8, // SEW is in bits.
+           llvm::dwarf::DW_OP_div, llvm::dwarf::DW_OP_constu, LMUL});
+
+      Expr.push_back(llvm::dwarf::DW_OP_mul);
+
+      // Element max index = count - 1
+      Expr.append({llvm::dwarf::DW_OP_constu, 1, llvm::dwarf::DW_OP_minus});
+
+      auto *LowerBound =
+          llvm::ConstantAsMetadata::get(llvm::ConstantInt::getSigned(
+              llvm::Type::getInt64Ty(CGM.getLLVMContext()), 0));
+      auto *UpperBound = DBuilder.createExpression(Expr);
+      llvm::Metadata *Subscript = DBuilder.getOrCreateSubrange(
+          /*count*/ nullptr, LowerBound, UpperBound, /*stride*/ nullptr);
+      llvm::DINodeArray SubscriptArray = DBuilder.getOrCreateArray(Subscript);
+      llvm::DIType *ElemTy =
+          getOrCreateType(Info.ElementType, TheCU->getFile());
+
+      auto Align = getTypeAlignIfRequired(BT, CGM.getContext());
+      return DBuilder.createScalableMatrixType(/*Size=*/0, /*Size2*/0, Align, ElemTy,
+                                               SubscriptArray);
+    }
+#endif
+
 #define WASM_REF_TYPE(Name, MangledName, Id, SingletonId, AS)                  \
   case BuiltinType::Id: {                                                      \
     if (!SingletonId)                                                          \
@@ -889,6 +936,10 @@ llvm::DIType *CGDebugInfo::CreateType(const BuiltinType *BT) {
   case BuiltinType::Bool:
     Encoding = llvm::dwarf::DW_ATE_boolean;
     break;
+#ifdef FP8_DATATYPES
+  case BuiltinType::BF8:
+  case BuiltinType::HF8:
+#endif
   case BuiltinType::Half:
   case BuiltinType::Float:
   case BuiltinType::LongDouble:
@@ -3171,6 +3222,39 @@ llvm::DIType *CGDebugInfo::CreateType(const VectorType *Ty,
   return DBuilder.createVectorType(Size, Align, ElementTy, SubscriptArray);
 }
 
+#ifdef SCALABLE_MATRIX
+llvm::DIType *CGDebugInfo::CreateType(const ScalableMatrixType *Ty,
+                                      llvm::DIFile *Unit) {
+  // SW-21250: Implement CGDebugInfo::CreateType for scalable matrices
+
+  llvm::DIType *ElementTy = getOrCreateType(Ty->getElementType(), Unit);
+  int64_t Count = Ty->getNumRows();
+  //int64_t Count2 = Ty->getNumCols();
+
+  llvm::Metadata *Subscript;
+  QualType QTy(Ty, 0);
+  auto SizeExpr = SizeExprCache.find(QTy);
+  if (SizeExpr != SizeExprCache.end())
+    Subscript = DBuilder.getOrCreateSubrange(
+        SizeExpr->getSecond() /*count*/, nullptr /*lowerBound*/,
+        nullptr /*upperBound*/, nullptr /*stride*/);
+  else {
+    auto *CountNode =
+        llvm::ConstantAsMetadata::get(llvm::ConstantInt::getSigned(
+            llvm::Type::getInt64Ty(CGM.getLLVMContext()), Count ? Count : -1));
+    Subscript = DBuilder.getOrCreateSubrange(
+        CountNode /*count*/, nullptr /*lowerBound*/, nullptr /*upperBound*/,
+        nullptr /*stride*/);
+  }
+  llvm::DINodeArray SubscriptArray = DBuilder.getOrCreateArray(Subscript);
+
+  //uint64_t Size = CGM.getContext().getTypeSize(Ty);
+  auto Align = getTypeAlignIfRequired(Ty, CGM.getContext());
+
+  return DBuilder.createScalableMatrixType(/*Size*/0, /*Size2*/0, Align, ElementTy, SubscriptArray);
+}
+#endif
+
 llvm::DIType *CGDebugInfo::CreateType(const ConstantMatrixType *Ty,
                                       llvm::DIFile *Unit) {
   // FIXME: Create another debug type for matrices
@@ -3601,6 +3685,10 @@ llvm::DIType *CGDebugInfo::CreateTypeNode(QualType Ty, llvm::DIFile *Unit) {
   case Type::ExtVector:
   case Type::Vector:
     return CreateType(cast<VectorType>(Ty), Unit);
+#ifdef SCALABLE_MATRIX
+  case Type::ScalableMatrix:
+    return CreateType(cast<ScalableMatrixType>(Ty), Unit);
+#endif
   case Type::ConstantMatrix:
     return CreateType(cast<ConstantMatrixType>(Ty), Unit);
   case Type::ObjCObjectPointer:

@@ -18,11 +18,13 @@ class ValueType<int size, int value> {
   int Size = size;
   int Value = value;
   int nElem = 1;
+  int nElem2 = 1;
   ValueType ElementType = ?;
   int isOverloaded = false;
   int isInteger = false;
   int isFP = false;
   int isVector = false;
+  int isMatrix = false;
   int isScalable = false;
 }
 
@@ -47,10 +49,27 @@ class VTVec<int nelem, ValueType elt, int value>
   let isInteger = elt.isInteger;
   let isFP = elt.isFP;
   let isVector = true;
+  let isMatrix = false;
 }
 
 class VTScalableVec<int nelem, ValueType elt, int value>
     : VTVec<nelem, elt, value> {
+  let isScalable = true;
+}
+
+class VTMat<int nelem1, int nelem2, ValueType elt, int value>
+    : ValueType<!mul(!mul(nelem1,nelem2), elt.Size), value> {
+  let nElem = nelem1;
+  let nElem2 = nelem2;
+  let ElementType = elt;
+  let isInteger = elt.isInteger;
+  let isFP = elt.isFP;
+  let isVector = false;
+  let isMatrix = true;
+}
+
+class VTScalableMat<int nelem1, int nelem2, ValueType elt, int value>
+    : VTMat<nelem1, nelem2, elt, value> {
   let isScalable = true;
 }
 
@@ -69,245 +88,400 @@ def i32     : VTInt<32,  7>;  // 32-bit integer value
 def i64     : VTInt<64,  8>;  // 64-bit integer value
 def i128    : VTInt<128, 9>;  // 128-bit integer value
 
-def bf16    : VTFP<16,  10>;  // 16-bit brain floating point value
-def f16     : VTFP<16,  11>;  // 16-bit floating point value
-def f32     : VTFP<32,  12>;  // 32-bit floating point value
-def f64     : VTFP<64,  13>;  // 64-bit floating point value
-def f80     : VTFP<80,  14>;  // 80-bit floating point value
-def f128    : VTFP<128, 15>;  // 128-bit floating point value
-def ppcf128 : VTFP<128, 16>;  // PPC 128-bit floating point value
+def bf8     : VTFP<8,   10>;  // 8-bit bf8 floating point value
+def hf8     : VTFP<8,   11>;  // 8-bit hf8 floating point value
+def bf16    : VTFP<16,  12>;  // 16-bit brain floating point value
+def f16     : VTFP<16,  13>;  // 16-bit floating point value
+def f32     : VTFP<32,  14>;  // 32-bit floating point value
+def f64     : VTFP<64,  15>;  // 64-bit floating point value
+def f80     : VTFP<80,  16>;  // 80-bit floating point value
+def f128    : VTFP<128, 17>;  // 128-bit floating point value
+def ppcf128 : VTFP<128, 18>;  // PPC 128-bit floating point value
 
-def v1i1    : VTVec<1,    i1, 17>;  //    1 x i1 vector value
-def v2i1    : VTVec<2,    i1, 18>;  //    2 x i1 vector value
-def v4i1    : VTVec<4,    i1, 19>;  //    4 x i1 vector value
-def v8i1    : VTVec<8,    i1, 20>;  //    8 x i1 vector value
-def v16i1   : VTVec<16,   i1, 21>;  //   16 x i1 vector value
-def v32i1   : VTVec<32,   i1, 22>;  //   32 x i1 vector value
-def v64i1   : VTVec<64,   i1, 23>;  //   64 x i1 vector value
-def v128i1  : VTVec<128,  i1, 24>;  //  128 x i1 vector value
-def v256i1  : VTVec<256,  i1, 25>;  //  256 x i1 vector value
-def v512i1  : VTVec<512,  i1, 26>;  //  512 x i1 vector value
-def v1024i1 : VTVec<1024, i1, 27>;  // 1024 x i1 vector value
-def v2048i1 : VTVec<2048, i1, 28>;  // 2048 x i1 vector value
+def v1i1    : VTVec<1,    i1, 19>;  //    1 x i1 vector value
+def v2i1    : VTVec<2,    i1, 20>;  //    2 x i1 vector value
+def v4i1    : VTVec<4,    i1, 21>;  //    4 x i1 vector value
+def v8i1    : VTVec<8,    i1, 22>;  //    8 x i1 vector value
+def v16i1   : VTVec<16,   i1, 23>;  //   16 x i1 vector value
+def v32i1   : VTVec<32,   i1, 24>;  //   32 x i1 vector value
+def v64i1   : VTVec<64,   i1, 25>;  //   64 x i1 vector value
+def v128i1  : VTVec<128,  i1, 26>;  //  128 x i1 vector value
+def v256i1  : VTVec<256,  i1, 27>;  //  256 x i1 vector value
+def v512i1  : VTVec<512,  i1, 28>;  //  512 x i1 vector value
+def v1024i1 : VTVec<1024, i1, 29>;  // 1024 x i1 vector value
+def v2048i1 : VTVec<2048, i1, 30>;  // 2048 x i1 vector value
 
-def v128i2  : VTVec<128,  i2, 29>;   //  128 x i2 vector value
-def v256i2  : VTVec<256,  i2, 30>;   //  256 x i2 vector value
+def v128i2  : VTVec<128,  i2, 31>;   //  128 x i2 vector value
+def v256i2  : VTVec<256,  i2, 32>;   //  256 x i2 vector value
 
-def v64i4   : VTVec<64,   i4, 31>;   //   64 x i4 vector value
-def v128i4  : VTVec<128,  i4, 32>;   //  128 x i4 vector value
+def v64i4   : VTVec<64,   i4, 33>;   //   64 x i4 vector value
+def v128i4  : VTVec<128,  i4, 34>;   //  128 x i4 vector value
 
-def v1i8    : VTVec<1,    i8, 33>;  //    1 x i8 vector value
-def v2i8    : VTVec<2,    i8, 34>;  //    2 x i8 vector value
-def v4i8    : VTVec<4,    i8, 35>;  //    4 x i8 vector value
-def v8i8    : VTVec<8,    i8, 36>;  //    8 x i8 vector value
-def v16i8   : VTVec<16,   i8, 37>;  //   16 x i8 vector value
-def v32i8   : VTVec<32,   i8, 38>;  //   32 x i8 vector value
-def v64i8   : VTVec<64,   i8, 39>;  //   64 x i8 vector value
-def v128i8  : VTVec<128,  i8, 40>;  //  128 x i8 vector value
-def v256i8  : VTVec<256,  i8, 41>;  //  256 x i8 vector value
-def v512i8  : VTVec<512,  i8, 42>;  //  512 x i8 vector value
-def v1024i8 : VTVec<1024, i8, 43>;  // 1024 x i8 vector value
+def v1i8    : VTVec<1,    i8, 35>;  //    1 x i8 vector value
+def v2i8    : VTVec<2,    i8, 36>;  //    2 x i8 vector value
+def v4i8    : VTVec<4,    i8, 37>;  //    4 x i8 vector value
+def v8i8    : VTVec<8,    i8, 38>;  //    8 x i8 vector value
+def v16i8   : VTVec<16,   i8, 39>;  //   16 x i8 vector value
+def v32i8   : VTVec<32,   i8, 40>;  //   32 x i8 vector value
+def v64i8   : VTVec<64,   i8, 41>;  //   64 x i8 vector value
+def v128i8  : VTVec<128,  i8, 42>;  //  128 x i8 vector value
+def v256i8  : VTVec<256,  i8, 43>;  //  256 x i8 vector value
+def v512i8  : VTVec<512,  i8, 44>;  //  512 x i8 vector value
+def v1024i8 : VTVec<1024, i8, 45>;  // 1024 x i8 vector value
 
-def v1i16   : VTVec<1,   i16, 44>;  //   1 x i16 vector value
-def v2i16   : VTVec<2,   i16, 45>;  //   2 x i16 vector value
-def v3i16   : VTVec<3,   i16, 46>;  //   3 x i16 vector value
-def v4i16   : VTVec<4,   i16, 47>;  //   4 x i16 vector value
-def v8i16   : VTVec<8,   i16, 48>;  //   8 x i16 vector value
-def v16i16  : VTVec<16,  i16, 49>;  //  16 x i16 vector value
-def v32i16  : VTVec<32,  i16, 50>;  //  32 x i16 vector value
-def v64i16  : VTVec<64,  i16, 51>;  //  64 x i16 vector value
-def v128i16 : VTVec<128, i16, 52>;  // 128 x i16 vector value
-def v256i16 : VTVec<256, i16, 53>;  // 256 x i16 vector value
-def v512i16 : VTVec<512, i16, 54>;  // 512 x i16 vector value
+def v1i16   : VTVec<1,   i16, 46>;  //   1 x i16 vector value
+def v2i16   : VTVec<2,   i16, 47>;  //   2 x i16 vector value
+def v3i16   : VTVec<3,   i16, 48>;  //   3 x i16 vector value
+def v4i16   : VTVec<4,   i16, 49>;  //   4 x i16 vector value
+def v8i16   : VTVec<8,   i16, 50>;  //   8 x i16 vector value
+def v16i16  : VTVec<16,  i16, 51>;  //  16 x i16 vector value
+def v32i16  : VTVec<32,  i16, 52>;  //  32 x i16 vector value
+def v64i16  : VTVec<64,  i16, 53>;  //  64 x i16 vector value
+def v128i16 : VTVec<128, i16, 54>;  // 128 x i16 vector value
+def v256i16 : VTVec<256, i16, 55>;  // 256 x i16 vector value
+def v512i16 : VTVec<512, i16, 56>;  // 512 x i16 vector value
 
-def v1i32    : VTVec<1,    i32, 55>;  //    1 x i32 vector value
-def v2i32    : VTVec<2,    i32, 56>;  //    2 x i32 vector value
-def v3i32    : VTVec<3,    i32, 57>;  //    3 x i32 vector value
-def v4i32    : VTVec<4,    i32, 58>;  //    4 x i32 vector value
-def v5i32    : VTVec<5,    i32, 59>;  //    5 x i32 vector value
-def v6i32    : VTVec<6,    i32, 60>;  //    6 x f32 vector value
-def v7i32    : VTVec<7,    i32, 61>;  //    7 x f32 vector value
-def v8i32    : VTVec<8,    i32, 62>;  //    8 x i32 vector value
-def v9i32    : VTVec<9,    i32, 63>;  //    9 x i32 vector value
-def v10i32   : VTVec<10,   i32, 64>;  //   10 x i32 vector value
-def v11i32   : VTVec<11,   i32, 65>;  //   11 x i32 vector value
-def v12i32   : VTVec<12,   i32, 66>;  //   12 x i32 vector value
-def v16i32   : VTVec<16,   i32, 67>;  //   16 x i32 vector value
-def v32i32   : VTVec<32,   i32, 68>;  //   32 x i32 vector value
-def v64i32   : VTVec<64,   i32, 69>;  //   64 x i32 vector value
-def v128i32  : VTVec<128,  i32, 70>;  //  128 x i32 vector value
-def v256i32  : VTVec<256,  i32, 71>;  //  256 x i32 vector value
-def v512i32  : VTVec<512,  i32, 72>;  //  512 x i32 vector value
-def v1024i32 : VTVec<1024, i32, 73>;  // 1024 x i32 vector value
-def v2048i32 : VTVec<2048, i32, 74>;  // 2048 x i32 vector value
+def v1i32    : VTVec<1,    i32, 57>;  //    1 x i32 vector value
+def v2i32    : VTVec<2,    i32, 58>;  //    2 x i32 vector value
+def v3i32    : VTVec<3,    i32, 59>;  //    3 x i32 vector value
+def v4i32    : VTVec<4,    i32, 60>;  //    4 x i32 vector value
+def v5i32    : VTVec<5,    i32, 61>;  //    5 x i32 vector value
+def v6i32    : VTVec<6,    i32, 62>;  //    6 x f32 vector value
+def v7i32    : VTVec<7,    i32, 63>;  //    7 x f32 vector value
+def v8i32    : VTVec<8,    i32, 64>;  //    8 x i32 vector value
+def v9i32    : VTVec<9,    i32, 65>;  //    9 x i32 vector value
+def v10i32   : VTVec<10,   i32, 66>;  //   10 x i32 vector value
+def v11i32   : VTVec<11,   i32, 67>;  //   11 x i32 vector value
+def v12i32   : VTVec<12,   i32, 68>;  //   12 x i32 vector value
+def v16i32   : VTVec<16,   i32, 69>;  //   16 x i32 vector value
+def v32i32   : VTVec<32,   i32, 70>;  //   32 x i32 vector value
+def v64i32   : VTVec<64,   i32, 71>;  //   64 x i32 vector value
+def v128i32  : VTVec<128,  i32, 72>;  //  128 x i32 vector value
+def v256i32  : VTVec<256,  i32, 73>;  //  256 x i32 vector value
+def v512i32  : VTVec<512,  i32, 74>;  //  512 x i32 vector value
+def v1024i32 : VTVec<1024, i32, 75>;  // 1024 x i32 vector value
+def v2048i32 : VTVec<2048, i32, 76>;  // 2048 x i32 vector value
 
-def v1i64   : VTVec<1,   i64, 75>;  //   1 x i64 vector value
-def v2i64   : VTVec<2,   i64, 76>;  //   2 x i64 vector value
-def v3i64   : VTVec<3,   i64, 77>;  //   3 x i64 vector value
-def v4i64   : VTVec<4,   i64, 78>;  //   4 x i64 vector value
-def v8i64   : VTVec<8,   i64, 79>;  //   8 x i64 vector value
-def v16i64  : VTVec<16,  i64, 80>;  //  16 x i64 vector value
-def v32i64  : VTVec<32,  i64, 81>;  //  32 x i64 vector value
-def v64i64  : VTVec<64,  i64, 82>;  //  64 x i64 vector value
-def v128i64 : VTVec<128, i64, 83>;  // 128 x i64 vector value
-def v256i64 : VTVec<256, i64, 84>;  // 256 x i64 vector value
+def v1i64   : VTVec<1,   i64, 77>;  //   1 x i64 vector value
+def v2i64   : VTVec<2,   i64, 78>;  //   2 x i64 vector value
+def v3i64   : VTVec<3,   i64, 79>;  //   3 x i64 vector value
+def v4i64   : VTVec<4,   i64, 80>;  //   4 x i64 vector value
+def v8i64   : VTVec<8,   i64, 81>;  //   8 x i64 vector value
+def v16i64  : VTVec<16,  i64, 82>;  //  16 x i64 vector value
+def v32i64  : VTVec<32,  i64, 83>;  //  32 x i64 vector value
+def v64i64  : VTVec<64,  i64, 84>;  //  64 x i64 vector value
+def v128i64 : VTVec<128, i64, 85>;  // 128 x i64 vector value
+def v256i64 : VTVec<256, i64, 86>;  // 256 x i64 vector value
 
-def v1i128  : VTVec<1,  i128, 85>;  //  1 x i128 vector value
+def v1i128  : VTVec<1,  i128, 87>;  //  1 x i128 vector value
 
-def v1f16    : VTVec<1,    f16,  86>;  //    1 x f16 vector value
-def v2f16    : VTVec<2,    f16,  87>;  //    2 x f16 vector value
-def v3f16    : VTVec<3,    f16,  88>;  //    3 x f16 vector value
-def v4f16    : VTVec<4,    f16,  89>;  //    4 x f16 vector value
-def v8f16    : VTVec<8,    f16,  90>;  //    8 x f16 vector value
-def v16f16   : VTVec<16,   f16,  91>;  //   16 x f16 vector value
-def v32f16   : VTVec<32,   f16,  92>;  //   32 x f16 vector value
-def v64f16   : VTVec<64,   f16,  93>;  //   64 x f16 vector value
-def v128f16  : VTVec<128,  f16,  94>;  //  128 x f16 vector value
-def v256f16  : VTVec<256,  f16,  95>;  //  256 x f16 vector value
-def v512f16  : VTVec<512,  f16,  96>;  //  512 x f16 vector value
+def v1f16    : VTVec<1,    f16,  88>;  //    1 x f16 vector value
+def v2f16    : VTVec<2,    f16,  89>;  //    2 x f16 vector value
+def v3f16    : VTVec<3,    f16,  90>;  //    3 x f16 vector value
+def v4f16    : VTVec<4,    f16,  91>;  //    4 x f16 vector value
+def v8f16    : VTVec<8,    f16,  92>;  //    8 x f16 vector value
+def v16f16   : VTVec<16,   f16,  93>;  //   16 x f16 vector value
+def v32f16   : VTVec<32,   f16,  94>;  //   32 x f16 vector value
+def v64f16   : VTVec<64,   f16,  95>;  //   64 x f16 vector value
+def v128f16  : VTVec<128,  f16,  96>;  //  128 x f16 vector value
+def v256f16  : VTVec<256,  f16,  97>;  //  256 x f16 vector value
+def v512f16  : VTVec<512,  f16,  98>;  //  512 x f16 vector value
 
-def v2bf16   : VTVec<2,   bf16,  97>;  //    2 x bf16 vector value
-def v3bf16   : VTVec<3,   bf16,  98>;  //    3 x bf16 vector value
-def v4bf16   : VTVec<4,   bf16,  99>;  //    4 x bf16 vector value
-def v8bf16   : VTVec<8,   bf16, 100>;  //    8 x bf16 vector value
-def v16bf16  : VTVec<16,  bf16, 101>;  //   16 x bf16 vector value
-def v32bf16  : VTVec<32,  bf16, 102>;  //   32 x bf16 vector value
-def v64bf16  : VTVec<64,  bf16, 103>;  //   64 x bf16 vector value
-def v128bf16 : VTVec<128, bf16, 104>;  //  128 x bf16 vector value
+def v2bf16   : VTVec<2,   bf16,  99>;  //    2 x bf16 vector value
+def v3bf16   : VTVec<3,   bf16, 100>;  //    3 x bf16 vector value
+def v4bf16   : VTVec<4,   bf16, 101>;  //    4 x bf16 vector value
+def v8bf16   : VTVec<8,   bf16, 102>;  //    8 x bf16 vector value
+def v16bf16  : VTVec<16,  bf16, 103>;  //   16 x bf16 vector value
+def v32bf16  : VTVec<32,  bf16, 104>;  //   32 x bf16 vector value
+def v64bf16  : VTVec<64,  bf16, 105>;  //   64 x bf16 vector value
+def v128bf16 : VTVec<128, bf16, 106>;  //  128 x bf16 vector value
 
-def v1f32    : VTVec<1,    f32, 105>;  //    1 x f32 vector value
-def v2f32    : VTVec<2,    f32, 106>;  //    2 x f32 vector value
-def v3f32    : VTVec<3,    f32, 107>;  //    3 x f32 vector value
-def v4f32    : VTVec<4,    f32, 108>;  //    4 x f32 vector value
-def v5f32    : VTVec<5,    f32, 109>;  //    5 x f32 vector value
-def v6f32    : VTVec<6,    f32, 110>;  //    6 x f32 vector value
-def v7f32    : VTVec<7,    f32, 111>;  //    7 x f32 vector value
-def v8f32    : VTVec<8,    f32, 112>;  //    8 x f32 vector value
-def v9f32    : VTVec<9,    f32, 113>;  //    9 x f32 vector value
-def v10f32   : VTVec<10,   f32, 114>;  //   10 x f32 vector value
-def v11f32   : VTVec<11,   f32, 115>;  //   11 x f32 vector value
-def v12f32   : VTVec<12,   f32, 116>;  //   12 x f32 vector value
-def v16f32   : VTVec<16,   f32, 117>;  //   16 x f32 vector value
-def v32f32   : VTVec<32,   f32, 118>;  //   32 x f32 vector value
-def v64f32   : VTVec<64,   f32, 119>;  //   64 x f32 vector value
-def v128f32  : VTVec<128,  f32, 120>;  //  128 x f32 vector value
-def v256f32  : VTVec<256,  f32, 121>;  //  256 x f32 vector value
-def v512f32  : VTVec<512,  f32, 122>;  //  512 x f32 vector value
-def v1024f32 : VTVec<1024, f32, 123>;  // 1024 x f32 vector value
-def v2048f32 : VTVec<2048, f32, 124>;  // 2048 x f32 vector value
+def v1f32    : VTVec<1,    f32, 107>;  //    1 x f32 vector value
+def v2f32    : VTVec<2,    f32, 108>;  //    2 x f32 vector value
+def v3f32    : VTVec<3,    f32, 109>;  //    3 x f32 vector value
+def v4f32    : VTVec<4,    f32, 110>;  //    4 x f32 vector value
+def v5f32    : VTVec<5,    f32, 111>;  //    5 x f32 vector value
+def v6f32    : VTVec<6,    f32, 112>;  //    6 x f32 vector value
+def v7f32    : VTVec<7,    f32, 113>;  //    7 x f32 vector value
+def v8f32    : VTVec<8,    f32, 114>;  //    8 x f32 vector value
+def v9f32    : VTVec<9,    f32, 115>;  //    9 x f32 vector value
+def v10f32   : VTVec<10,   f32, 116>;  //   10 x f32 vector value
+def v11f32   : VTVec<11,   f32, 117>;  //   11 x f32 vector value
+def v12f32   : VTVec<12,   f32, 118>;  //   12 x f32 vector value
+def v16f32   : VTVec<16,   f32, 119>;  //   16 x f32 vector value
+def v32f32   : VTVec<32,   f32, 120>;  //   32 x f32 vector value
+def v64f32   : VTVec<64,   f32, 121>;  //   64 x f32 vector value
+def v128f32  : VTVec<128,  f32, 122>;  //  128 x f32 vector value
+def v256f32  : VTVec<256,  f32, 123>;  //  256 x f32 vector value
+def v512f32  : VTVec<512,  f32, 124>;  //  512 x f32 vector value
+def v1024f32 : VTVec<1024, f32, 125>;  // 1024 x f32 vector value
+def v2048f32 : VTVec<2048, f32, 126>;  // 2048 x f32 vector value
 
-def v1f64    : VTVec<1,    f64, 125>;  //    1 x f64 vector value
-def v2f64    : VTVec<2,    f64, 126>;  //    2 x f64 vector value
-def v3f64    : VTVec<3,    f64, 127>;  //    3 x f64 vector value
-def v4f64    : VTVec<4,    f64, 128>;  //    4 x f64 vector value
-def v8f64    : VTVec<8,    f64, 129>;  //    8 x f64 vector value
-def v16f64   : VTVec<16,   f64, 130>;  //   16 x f64 vector value
-def v32f64   : VTVec<32,   f64, 131>;  //   32 x f64 vector value
-def v64f64   : VTVec<64,   f64, 132>;  //   64 x f64 vector value
-def v128f64  : VTVec<128,  f64, 133>;  //  128 x f64 vector value
-def v256f64  : VTVec<256,  f64, 134>;  //  256 x f64 vector value
+def v1f64    : VTVec<1,    f64, 127>;  //    1 x f64 vector value
+def v2f64    : VTVec<2,    f64, 128>;  //    2 x f64 vector value
+def v3f64    : VTVec<3,    f64, 129>;  //    3 x f64 vector value
+def v4f64    : VTVec<4,    f64, 130>;  //    4 x f64 vector value
+def v8f64    : VTVec<8,    f64, 131>;  //    8 x f64 vector value
+def v16f64   : VTVec<16,   f64, 132>;  //   16 x f64 vector value
+def v32f64   : VTVec<32,   f64, 133>;  //   32 x f64 vector value
+def v64f64   : VTVec<64,   f64, 134>;  //   64 x f64 vector value
+def v128f64  : VTVec<128,  f64, 135>;  //  128 x f64 vector value
+def v256f64  : VTVec<256,  f64, 136>;  //  256 x f64 vector value
 
-def nxv1i1  : VTScalableVec<1,  i1, 135>;  // n x  1 x i1  vector value
-def nxv2i1  : VTScalableVec<2,  i1, 136>;  // n x  2 x i1  vector value
-def nxv4i1  : VTScalableVec<4,  i1, 137>;  // n x  4 x i1  vector value
-def nxv8i1  : VTScalableVec<8,  i1, 138>;  // n x  8 x i1  vector value
-def nxv16i1 : VTScalableVec<16, i1, 139>;  // n x 16 x i1  vector value
-def nxv32i1 : VTScalableVec<32, i1, 140>;  // n x 32 x i1  vector value
-def nxv64i1 : VTScalableVec<64, i1, 141>;  // n x 64 x i1  vector value
+def nxv1i1  : VTScalableVec<1,  i1, 137>;  // n x  1 x i1  vector value
+def nxv2i1  : VTScalableVec<2,  i1, 138>;  // n x  2 x i1  vector value
+def nxv4i1  : VTScalableVec<4,  i1, 139>;  // n x  4 x i1  vector value
+def nxv8i1  : VTScalableVec<8,  i1, 140>;  // n x  8 x i1  vector value
+def nxv16i1 : VTScalableVec<16, i1, 141>;  // n x 16 x i1  vector value
+def nxv32i1 : VTScalableVec<32, i1, 142>;  // n x 32 x i1  vector value
+def nxv64i1 : VTScalableVec<64, i1, 143>;  // n x 64 x i1  vector value
 
-def nxv1i8  : VTScalableVec<1,  i8, 142>;  // n x  1 x i8  vector value
-def nxv2i8  : VTScalableVec<2,  i8, 143>;  // n x  2 x i8  vector value
-def nxv4i8  : VTScalableVec<4,  i8, 144>;  // n x  4 x i8  vector value
-def nxv8i8  : VTScalableVec<8,  i8, 145>;  // n x  8 x i8  vector value
-def nxv16i8 : VTScalableVec<16, i8, 146>;  // n x 16 x i8  vector value
-def nxv32i8 : VTScalableVec<32, i8, 147>;  // n x 32 x i8  vector value
-def nxv64i8 : VTScalableVec<64, i8, 148>;  // n x 64 x i8  vector value
+def nxv1i8  : VTScalableVec<1,  i8, 144>;  // n x  1 x i8  vector value
+def nxv2i8  : VTScalableVec<2,  i8, 145>;  // n x  2 x i8  vector value
+def nxv4i8  : VTScalableVec<4,  i8, 146>;  // n x  4 x i8  vector value
+def nxv8i8  : VTScalableVec<8,  i8, 147>;  // n x  8 x i8  vector value
+def nxv16i8 : VTScalableVec<16, i8, 148>;  // n x 16 x i8  vector value
+def nxv32i8 : VTScalableVec<32, i8, 149>;  // n x 32 x i8  vector value
+def nxv64i8 : VTScalableVec<64, i8, 150>;  // n x 64 x i8  vector value
 
-def nxv1i16  : VTScalableVec<1,  i16, 149>;  // n x  1 x i16 vector value
-def nxv2i16  : VTScalableVec<2,  i16, 150>;  // n x  2 x i16 vector value
-def nxv4i16  : VTScalableVec<4,  i16, 151>;  // n x  4 x i16 vector value
-def nxv8i16  : VTScalableVec<8,  i16, 152>;  // n x  8 x i16 vector value
-def nxv16i16 : VTScalableVec<16, i16, 153>;  // n x 16 x i16 vector value
-def nxv32i16 : VTScalableVec<32, i16, 154>;  // n x 32 x i16 vector value
+def nxv1i16  : VTScalableVec<1,  i16, 151>;  // n x  1 x i16 vector value
+def nxv2i16  : VTScalableVec<2,  i16, 152>;  // n x  2 x i16 vector value
+def nxv4i16  : VTScalableVec<4,  i16, 153>;  // n x  4 x i16 vector value
+def nxv8i16  : VTScalableVec<8,  i16, 154>;  // n x  8 x i16 vector value
+def nxv16i16 : VTScalableVec<16, i16, 155>;  // n x 16 x i16 vector value
+def nxv32i16 : VTScalableVec<32, i16, 156>;  // n x 32 x i16 vector value
 
-def nxv1i32  : VTScalableVec<1,  i32, 155>;  // n x  1 x i32 vector value
-def nxv2i32  : VTScalableVec<2,  i32, 156>;  // n x  2 x i32 vector value
-def nxv4i32  : VTScalableVec<4,  i32, 157>;  // n x  4 x i32 vector value
-def nxv8i32  : VTScalableVec<8,  i32, 158>;  // n x  8 x i32 vector value
-def nxv16i32 : VTScalableVec<16, i32, 159>;  // n x 16 x i32 vector value
-def nxv32i32 : VTScalableVec<32, i32, 160>;  // n x 32 x i32 vector value
+def nxv1i32  : VTScalableVec<1,  i32, 157>;  // n x  1 x i32 vector value
+def nxv2i32  : VTScalableVec<2,  i32, 158>;  // n x  2 x i32 vector value
+def nxv4i32  : VTScalableVec<4,  i32, 159>;  // n x  4 x i32 vector value
+def nxv8i32  : VTScalableVec<8,  i32, 160>;  // n x  8 x i32 vector value
+def nxv16i32 : VTScalableVec<16, i32, 161>;  // n x 16 x i32 vector value
+def nxv32i32 : VTScalableVec<32, i32, 162>;  // n x 32 x i32 vector value
 
-def nxv1i64  : VTScalableVec<1,  i64, 161>;  // n x  1 x i64 vector value
-def nxv2i64  : VTScalableVec<2,  i64, 162>;  // n x  2 x i64 vector value
-def nxv4i64  : VTScalableVec<4,  i64, 163>;  // n x  4 x i64 vector value
-def nxv8i64  : VTScalableVec<8,  i64, 164>;  // n x  8 x i64 vector value
-def nxv16i64 : VTScalableVec<16, i64, 165>;  // n x 16 x i64 vector value
-def nxv32i64 : VTScalableVec<32, i64, 166>;  // n x 32 x i64 vector value
+def nxv1i64  : VTScalableVec<1,  i64, 163>;  // n x  1 x i64 vector value
+def nxv2i64  : VTScalableVec<2,  i64, 164>;  // n x  2 x i64 vector value
+def nxv4i64  : VTScalableVec<4,  i64, 165>;  // n x  4 x i64 vector value
+def nxv8i64  : VTScalableVec<8,  i64, 166>;  // n x  8 x i64 vector value
+def nxv16i64 : VTScalableVec<16, i64, 167>;  // n x 16 x i64 vector value
+def nxv32i64 : VTScalableVec<32, i64, 168>;  // n x 32 x i64 vector value
 
-def nxv1f16  : VTScalableVec<1,  f16, 167>;  // n x  1 x  f16 vector value
-def nxv2f16  : VTScalableVec<2,  f16, 168>;  // n x  2 x  f16 vector value
-def nxv4f16  : VTScalableVec<4,  f16, 169>;  // n x  4 x  f16 vector value
-def nxv8f16  : VTScalableVec<8,  f16, 170>;  // n x  8 x  f16 vector value
-def nxv16f16 : VTScalableVec<16, f16, 171>;  // n x 16 x  f16 vector value
-def nxv32f16 : VTScalableVec<32, f16, 172>;  // n x 32 x  f16 vector value
+def nxv1f16  : VTScalableVec<1,  f16, 169>;  // n x  1 x  f16 vector value
+def nxv2f16  : VTScalableVec<2,  f16, 170>;  // n x  2 x  f16 vector value
+def nxv4f16  : VTScalableVec<4,  f16, 171>;  // n x  4 x  f16 vector value
+def nxv8f16  : VTScalableVec<8,  f16, 172>;  // n x  8 x  f16 vector value
+def nxv16f16 : VTScalableVec<16, f16, 173>;  // n x 16 x  f16 vector value
+def nxv32f16 : VTScalableVec<32, f16, 174>;  // n x 32 x  f16 vector value
 
-def nxv1bf16  : VTScalableVec<1,  bf16, 173>;  // n x  1 x bf16 vector value
-def nxv2bf16  : VTScalableVec<2,  bf16, 174>;  // n x  2 x bf16 vector value
-def nxv4bf16  : VTScalableVec<4,  bf16, 175>;  // n x  4 x bf16 vector value
-def nxv8bf16  : VTScalableVec<8,  bf16, 176>;  // n x  8 x bf16 vector value
-def nxv16bf16 : VTScalableVec<16, bf16, 177>;  // n x 16 x bf16 vector value
-def nxv32bf16 : VTScalableVec<32, bf16, 178>;  // n x 32 x bf16 vector value
+def nxv1bf16  : VTScalableVec<1,  bf16, 175>;  // n x  1 x bf16 vector value
+def nxv2bf16  : VTScalableVec<2,  bf16, 176>;  // n x  2 x bf16 vector value
+def nxv4bf16  : VTScalableVec<4,  bf16, 177>;  // n x  4 x bf16 vector value
+def nxv8bf16  : VTScalableVec<8,  bf16, 178>;  // n x  8 x bf16 vector value
+def nxv16bf16 : VTScalableVec<16, bf16, 179>;  // n x 16 x bf16 vector value
+def nxv32bf16 : VTScalableVec<32, bf16, 180>;  // n x 32 x bf16 vector value
 
-def nxv1f32  : VTScalableVec<1,  f32, 179>;  // n x  1 x  f32 vector value
-def nxv2f32  : VTScalableVec<2,  f32, 180>;  // n x  2 x  f32 vector value
-def nxv4f32  : VTScalableVec<4,  f32, 181>;  // n x  4 x  f32 vector value
-def nxv8f32  : VTScalableVec<8,  f32, 182>;  // n x  8 x  f32 vector value
-def nxv16f32 : VTScalableVec<16, f32, 183>;  // n x 16 x  f32 vector value
+def nxv1f32  : VTScalableVec<1,  f32, 181>;  // n x  1 x  f32 vector value
+def nxv2f32  : VTScalableVec<2,  f32, 182>;  // n x  2 x  f32 vector value
+def nxv4f32  : VTScalableVec<4,  f32, 183>;  // n x  4 x  f32 vector value
+def nxv8f32  : VTScalableVec<8,  f32, 184>;  // n x  8 x  f32 vector value
+def nxv16f32 : VTScalableVec<16, f32, 185>;  // n x 16 x  f32 vector value
 
-def nxv1f64  : VTScalableVec<1,  f64, 184>;  // n x  1 x  f64 vector value
-def nxv2f64  : VTScalableVec<2,  f64, 185>;  // n x  2 x  f64 vector value
-def nxv4f64  : VTScalableVec<4,  f64, 186>;  // n x  4 x  f64 vector value
-def nxv8f64  : VTScalableVec<8,  f64, 187>;  // n x  8 x  f64 vector value
+def nxv1f64  : VTScalableVec<1,  f64, 186>;  // n x  1 x  f64 vector value
+def nxv2f64  : VTScalableVec<2,  f64, 187>;  // n x  2 x  f64 vector value
+def nxv4f64  : VTScalableVec<4,  f64, 188>;  // n x  4 x  f64 vector value
+def nxv8f64  : VTScalableVec<8,  f64, 189>;  // n x  8 x  f64 vector value
 
-def x86mmx    : ValueType<64,   188>;  // X86 MMX value
-def FlagVT    : ValueType<0,    189> { // Pre-RA sched glue
+def nxv1bf8  : VTScalableVec<1,  bf8, 190>;  // n x  1 x bf8  vector value
+def nxv2bf8  : VTScalableVec<2,  bf8, 191>;  // n x  2 x bf8  vector value
+def nxv4bf8  : VTScalableVec<4,  bf8, 192>;  // n x  4 x bf8  vector value
+def nxv8bf8  : VTScalableVec<8,  bf8, 193>;  // n x  8 x bf8  vector value
+def nxv16bf8 : VTScalableVec<16, bf8, 194>;  // n x 16 x bf8  vector value
+def nxv32bf8 : VTScalableVec<32, bf8, 195>;  // n x 32 x bf8  vector value
+def nxv64bf8 : VTScalableVec<64, bf8, 196>;  // n x 64 x bf8  vector value
+
+def nxv1hf8  : VTScalableVec<1,  hf8, 197>;  // n x  1 x hf8  vector value
+def nxv2hf8  : VTScalableVec<2,  hf8, 198>;  // n x  2 x hf8  vector value
+def nxv4hf8  : VTScalableVec<4,  hf8, 199>;  // n x  4 x hf8  vector value
+def nxv8hf8  : VTScalableVec<8,  hf8, 200>;  // n x  8 x hf8  vector value
+def nxv16hf8 : VTScalableVec<16, hf8, 201>;  // n x 16 x hf8  vector value
+def nxv32hf8 : VTScalableVec<32, hf8, 202>;  // n x 32 x hf8  vector value
+def nxv64hf8 : VTScalableVec<64, hf8, 203>;  // n x 64 x hf8  vector value
+
+def x86mmx    : ValueType<64,   204>;  // X86 MMX value
+def FlagVT    : ValueType<0,    205> { // Pre-RA sched glue
   let LLVMName = "Glue";
 }
-def isVoid    : ValueType<0,    190>;  // Produces no value
-def untyped   : ValueType<8,    191> { // Produces an untyped value
+def isVoid    : ValueType<0,    206>;  // Produces no value
+def untyped   : ValueType<8,    207> { // Produces an untyped value
   let LLVMName = "Untyped";
 }
-def funcref   : ValueType<0,    192>;  // WebAssembly's funcref type
-def externref : ValueType<0,    193>;  // WebAssembly's externref type
-def x86amx    : ValueType<8192, 194>;  // X86 AMX value
-def i64x8     : ValueType<512,  195>;  // 8 Consecutive GPRs (AArch64)
+def funcref   : ValueType<0,    208>;  // WebAssembly's funcref type
+def externref : ValueType<0,    209>;  // WebAssembly's externref type
+def x86amx    : ValueType<8192, 210>;  // X86 AMX value
+def i64x8     : ValueType<512,  211>;  // 8 Consecutive GPRs (AArch64)
 def aarch64svcount
-              : ValueType<16,   196>;  // AArch64 predicate-as-counter
-def spirvbuiltin : ValueType<0,  197>; // SPIR-V's builtin type
+              : ValueType<16,   212>;  // AArch64 predicate-as-counter
+def spirvbuiltin : ValueType<0,  213>; // SPIR-V's builtin type
 
-def token      : ValueType<0, 248>;  // TokenTy
-def MetadataVT : ValueType<0, 249> { // Metadata
+def m1x1xi8       : VTMat<1,  1, i8,   214>;  // 1 x  1 x i8   matrix value
+def m1x2xi8       : VTMat<1,  2, i8,   215>;  // 1 x  2 x i8   matrix value
+def m1x4xi8       : VTMat<1,  4, i8,   216>;  // 1 x  4 x i8   matrix value
+def m1x8xi8       : VTMat<1,  8, i8,   217>;  // 1 x  8 x i8   matrix value
+def m1x16xi8      : VTMat<1, 16, i8,   218>;  // 1 x 16 x i8   matrix value
+def m1x32xi8      : VTMat<1, 32, i8,   219>;  // 1 x 32 x i8   matrix value
+def m1x64xi8      : VTMat<1, 64, i8,   220>;  // 1 x 64 x i8   matrix value
+
+def m1x1xi16      : VTMat<1,  1, i16,  221>;  // 1 x  1 x i16  matrix value
+def m1x2xi16      : VTMat<1,  2, i16,  222>;  // 1 x  2 x i16  matrix value
+def m1x4xi16      : VTMat<1,  4, i16,  223>;  // 1 x  4 x i16  matrix value
+def m1x8xi16      : VTMat<1,  8, i16,  224>;  // 1 x  8 x i16  matrix value
+def m1x16xi16     : VTMat<1, 16, i16,  225>;  // 1 x 16 x i16  matrix value
+def m1x32xi16     : VTMat<1, 32, i16,  226>;  // 1 x 32 x i16  matrix value
+
+def m1x1xi32      : VTMat<1,  1, i32,  227>;  // 1 x  1 x i32  matrix value
+def m1x2xi32      : VTMat<1,  2, i32,  228>;  // 1 x  2 x i32  matrix value
+def m1x4xi32      : VTMat<1,  4, i32,  229>;  // 1 x  4 x i32  matrix value
+def m1x8xi32      : VTMat<1,  8, i32,  230>;  // 1 x  8 x i32  matrix value
+def m1x16xi32     : VTMat<1, 16, i32,  231>;  // 1 x 16 x i32  matrix value
+
+def m1x1xi64      : VTMat<1,  1, i64,  232>;  // 1 x  1 x i64  matrix value
+def m1x2xi64      : VTMat<1,  2, i64,  233>;  // 1 x  2 x i64  matrix value
+def m1x4xi64      : VTMat<1,  4, i64,  234>;  // 1 x  4 x i64  matrix value
+def m1x8xi64      : VTMat<1,  8, i64,  235>;  // 1 x  8 x i64  matrix value
+
+def m1x1xbf8      : VTMat<1,  1, bf8,  236>;  // 1 x  1 x bf8  matrix value
+def m1x2xbf8      : VTMat<1,  2, bf8,  237>;  // 1 x  2 x bf8  matrix value
+def m1x4xbf8      : VTMat<1,  4, bf8,  238>;  // 1 x  4 x bf8  matrix value
+def m1x8xbf8      : VTMat<1,  8, bf8,  239>;  // 1 x  8 x bf8  matrix value
+def m1x16xbf8     : VTMat<1, 16, bf8,  240>;  // 1 x 16 x bf8  matrix value
+def m1x32xbf8     : VTMat<1, 32, bf8,  241>;  // 1 x 32 x bf8  matrix value
+def m1x64xbf8     : VTMat<1, 64, bf8,  242>;  // 1 x 64 x bf8  matrix value
+
+def m1x1xhf8      : VTMat<1,  1, hf8,  243>;  // 1 x  1 x hf8  matrix value
+def m1x2xhf8      : VTMat<1,  2, hf8,  244>;  // 1 x  2 x hf8  matrix value
+def m1x4xhf8      : VTMat<1,  4, hf8,  245>;  // 1 x  4 x hf8  matrix value
+def m1x8xhf8      : VTMat<1,  8, hf8,  246>;  // 1 x  8 x hf8  matrix value
+def m1x16xhf8     : VTMat<1, 16, hf8,  247>;  // 1 x 16 x hf8  matrix value
+def m1x32xhf8     : VTMat<1, 32, hf8,  248>;  // 1 x 32 x hf8  matrix value
+def m1x64xhf8     : VTMat<1, 64, hf8,  249>;  // 1 x 64 x hf8  matrix value
+
+def m1x1xbf16     : VTMat<1,  1, bf16, 250>;  // 1 x  1 x bf16 matrix value
+def m1x2xbf16     : VTMat<1,  2, bf16, 251>;  // 1 x  2 x bf16 matrix value
+def m1x4xbf16     : VTMat<1,  4, bf16, 252>;  // 1 x  4 x bf16 matrix value
+def m1x8xbf16     : VTMat<1,  8, bf16, 253>;  // 1 x  8 x bf16 matrix value
+def m1x16xbf16    : VTMat<1, 16, bf16, 254>;  // 1 x 16 x bf16 matrix value
+def m1x32xbf16    : VTMat<1, 32, bf16, 255>;  // 1 x 32 x bf16 matrix value
+
+def m1x1xf16      : VTMat<1,  1, f16,  256>;  // 1 x  1 x f16  matrix value
+def m1x2xf16      : VTMat<1,  2, f16,  257>;  // 1 x  2 x f16  matrix value
+def m1x4xf16      : VTMat<1,  4, f16,  258>;  // 1 x  4 x f16  matrix value
+def m1x8xf16      : VTMat<1,  8, f16,  259>;  // 1 x  8 x f16  matrix value
+def m1x16xf16     : VTMat<1, 16, f16,  260>;  // 1 x 16 x f16  matrix value
+def m1x32xf16     : VTMat<1, 32, f16,  261>;  // 1 x 32 x f16  matrix value
+
+def m1x1xf32      : VTMat<1,  1, f32,  262>;  // 1 x  1 x f32  matrix value
+def m1x2xf32      : VTMat<1,  2, f32,  263>;  // 1 x  2 x f32  matrix value
+def m1x4xf32      : VTMat<1,  4, f32,  264>;  // 1 x  4 x f32  matrix value
+def m1x8xf32      : VTMat<1,  8, f32,  265>;  // 1 x  8 x f32  matrix value
+def m1x16xf32     : VTMat<1, 16, f32,  266>;  // 1 x 16 x f32  matrix value
+
+def m1x1xf64      : VTMat<1,  1, f64,  267>;  // 1 x  1 x f64  matrix value
+def m1x2xf64      : VTMat<1,  2, f64,  268>;  // 1 x  2 x f64  matrix value
+def m1x4xf64      : VTMat<1,  4, f64,  269>;  // 1 x  4 x f64  matrix value
+def m1x8xf64      : VTMat<1,  8, f64,  270>;  // 1 x  8 x f64  matrix value
+
+def mx1xnx1xi8    : VTScalableMat<1,  1, i8,   271>;  // 1 x  1 x i8   matrix value
+def mx1xnx2xi8    : VTScalableMat<1,  2, i8,   272>;  // 1 x  2 x i8   matrix value
+def mx1xnx4xi8    : VTScalableMat<1,  4, i8,   273>;  // 1 x  4 x i8   matrix value
+def mx1xnx8xi8    : VTScalableMat<1,  8, i8,   274>;  // 1 x  8 x i8   matrix value
+def mx1xnx16xi8   : VTScalableMat<1, 16, i8,   275>;  // 1 x 16 x i8   matrix value
+def mx1xnx32xi8   : VTScalableMat<1, 32, i8,   276>;  // 1 x 32 x i8   matrix value
+def mx1xnx64xi8   : VTScalableMat<1, 64, i8,   277>;  // 1 x 64 x i8   matrix value
+
+def mx1xnx1xi16   : VTScalableMat<1,  1, i16,  278>;  // 1 x  1 x i16  matrix value
+def mx1xnx2xi16   : VTScalableMat<1,  2, i16,  279>;  // 1 x  2 x i16  matrix value
+def mx1xnx4xi16   : VTScalableMat<1,  4, i16,  280>;  // 1 x  4 x i16  matrix value
+def mx1xnx8xi16   : VTScalableMat<1,  8, i16,  281>;  // 1 x  8 x i16  matrix value
+def mx1xnx16xi16  : VTScalableMat<1, 16, i16,  282>;  // 1 x 16 x i16  matrix value
+def mx1xnx32xi16  : VTScalableMat<1, 32, i16,  283>;  // 1 x 32 x i16  matrix value
+
+def mx1xnx1xi32   : VTScalableMat<1,  1, i32,  284>;  // 1 x  1 x i32  matrix value
+def mx1xnx2xi32   : VTScalableMat<1,  2, i32,  285>;  // 1 x  2 x i32  matrix value
+def mx1xnx4xi32   : VTScalableMat<1,  4, i32,  286>;  // 1 x  4 x i32  matrix value
+def mx1xnx8xi32   : VTScalableMat<1,  8, i32,  287>;  // 1 x  8 x i32  matrix value
+def mx1xnx16xi32  : VTScalableMat<1, 16, i32,  288>;  // 1 x 16 x i32  matrix value
+
+def mx1xnx1xi64   : VTScalableMat<1,  1, i64,  289>;  // 1 x  1 x i64  matrix value
+def mx1xnx2xi64   : VTScalableMat<1,  2, i64,  290>;  // 1 x  2 x i64  matrix value
+def mx1xnx4xi64   : VTScalableMat<1,  4, i64,  291>;  // 1 x  4 x i64  matrix value
+def mx1xnx8xi64   : VTScalableMat<1,  8, i64,  292>;  // 1 x  8 x i64  matrix value
+
+def mx1xnx1xbf8   : VTScalableMat<1,  1, bf8,  293>;  // 1 x  1 x bf8  matrix value
+def mx1xnx2xbf8   : VTScalableMat<1,  2, bf8,  294>;  // 1 x  2 x bf8  matrix value
+def mx1xnx4xbf8   : VTScalableMat<1,  4, bf8,  295>;  // 1 x  4 x bf8  matrix value
+def mx1xnx8xbf8   : VTScalableMat<1,  8, bf8,  296>;  // 1 x  8 x bf8  matrix value
+def mx1xnx16xbf8  : VTScalableMat<1, 16, bf8,  297>;  // 1 x 16 x bf8  matrix value
+def mx1xnx32xbf8  : VTScalableMat<1, 32, bf8,  298>;  // 1 x 32 x bf8  matrix value
+def mx1xnx64xbf8  : VTScalableMat<1, 64, bf8,  299>;  // 1 x 64 x bf8  matrix value
+
+def mx1xnx1xhf8   : VTScalableMat<1,  1, hf8,  300>;  // 1 x  1 x hf8  matrix value
+def mx1xnx2xhf8   : VTScalableMat<1,  2, hf8,  301>;  // 1 x  2 x hf8  matrix value
+def mx1xnx4xhf8   : VTScalableMat<1,  4, hf8,  302>;  // 1 x  4 x hf8  matrix value
+def mx1xnx8xhf8   : VTScalableMat<1,  8, hf8,  303>;  // 1 x  8 x hf8  matrix value
+def mx1xnx16xhf8  : VTScalableMat<1, 16, hf8,  304>;  // 1 x 16 x hf8  matrix value
+def mx1xnx32xhf8  : VTScalableMat<1, 32, hf8,  305>;  // 1 x 32 x hf8  matrix value
+def mx1xnx64xhf8  : VTScalableMat<1, 64, hf8,  306>;  // 1 x 64 x hf8  matrix value
+
+def mx1xnx1xbf16  : VTScalableMat<1,  1, bf16, 307>;  // 1 x  1 x f16  matrix value
+def mx1xnx2xbf16  : VTScalableMat<1,  2, bf16, 308>;  // 1 x  2 x f16  matrix value
+def mx1xnx4xbf16  : VTScalableMat<1,  4, bf16, 309>;  // 1 x  4 x f16  matrix value
+def mx1xnx8xbf16  : VTScalableMat<1,  8, bf16, 310>;  // 1 x  8 x f16  matrix value
+def mx1xnx16xbf16 : VTScalableMat<1, 16, bf16, 311>;  // 1 x 16 x f16  matrix value
+def mx1xnx32xbf16 : VTScalableMat<1, 32, bf16, 312>;  // 1 x 32 x f16  matrix value
+
+def mx1xnx1xf16   : VTScalableMat<1,  1, f16,  313>;  // 1 x  1 x f16  matrix value
+def mx1xnx2xf16   : VTScalableMat<1,  2, f16,  314>;  // 1 x  2 x f16  matrix value
+def mx1xnx4xf16   : VTScalableMat<1,  4, f16,  315>;  // 1 x  4 x f16  matrix value
+def mx1xnx8xf16   : VTScalableMat<1,  8, f16,  316>;  // 1 x  8 x f16  matrix value
+def mx1xnx16xf16  : VTScalableMat<1, 16, f16,  317>;  // 1 x 16 x f16  matrix value
+def mx1xnx32xf16  : VTScalableMat<1, 32, f16,  318>;  // 1 x 32 x f16  matrix value
+
+def mx1xnx1xf32   : VTScalableMat<1,  1, f32,  319>;  // 1 x  1 x f32  matrix value
+def mx1xnx2xf32   : VTScalableMat<1,  2, f32,  320>;  // 1 x  2 x f32  matrix value
+def mx1xnx4xf32   : VTScalableMat<1,  4, f32,  321>;  // 1 x  4 x f32  matrix value
+def mx1xnx8xf32   : VTScalableMat<1,  8, f32,  322>;  // 1 x  8 x f32  matrix value
+def mx1xnx16xf32  : VTScalableMat<1, 16, f32,  323>;  // 1 x 16 x f32  matrix value
+
+def mx1xnx1xf64   : VTScalableMat<1,  1, f64,  324>;  // 1 x  1 x f64  matrix value
+def mx1xnx2xf64   : VTScalableMat<1,  2, f64,  325>;  // 1 x  2 x f64  matrix value
+def mx1xnx4xf64   : VTScalableMat<1,  4, f64,  326>;  // 1 x  4 x f64  matrix value
+def mx1xnx8xf64   : VTScalableMat<1,  8, f64,  327>;  // 1 x  8 x f64  matrix value
+
+def token      : ValueType<0, 65527>;  // TokenTy
+def MetadataVT : ValueType<0, 65528> { // Metadata
   let LLVMName = "Metadata";
 }
 
 // Pseudo valuetype mapped to the current pointer size to any address space.
 // Should only be used in TableGen.
-def iPTRAny    : VTAny<250>;
+def iPTRAny    : VTAny<65529>;
 
 // Pseudo valuetype to represent "vector of any size"
-def vAny       : VTAny<251>;
+def vAny       : VTAny<65530>;
+
+// Pseudo valuetype to represent "matrix of any size"
+def mAny       : VTAny<65531>;
 
 // Pseudo valuetype to represent "float of any format"
-def fAny       : VTAny<252>;
+def fAny       : VTAny<65532>;
 
 // Pseudo valuetype to represent "integer of any bit width"
-def iAny       : VTAny<253>;
+def iAny       : VTAny<65533>;
 
 // Pseudo valuetype mapped to the current pointer size.
-def iPTR       : ValueType<0, 254>;
+def iPTR       : ValueType<0, 65534>;
 
 // Pseudo valuetype to represent "any type of any size".
-def Any        : VTAny<255>;
+def Any        : VTAny<65535>;
 
 } // end defset ValueTypes
 

@@ -1255,12 +1255,28 @@ operand fields are
 
 * *eltty*: The type index of the vector element type
 
+TYPE_CODE_SCALABLE_MATRIX Record
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``[SCALABE_MATRIX, numelts, numelts2, eltty, scalable]``
+
+The ``SCALABLE_MATRIX`` record (code 13) adds a scalable matrix type to the type table.  The
+operand fields are
+
+* *numelts*: The number of elements in first dimension of matrices of this type
+
+* *numelts2*: The number of elements in second dimension of matrices of this type
+
+* *eltty*: The type index of the scalable matrix element type
+
+* *scalable*: Whether this scalable matrix actually scales or it has a fix size.
+
 TYPE_CODE_X86_FP80 Record
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 ``[X86_FP80]``
 
-The ``X86_FP80`` record (code 13) adds an ``x86_fp80`` (80-bit floating point)
+The ``X86_FP80`` record (code 14) adds an ``x86_fp80`` (80-bit floating point)
 type to the type table.
 
 TYPE_CODE_FP128 Record
@@ -1268,7 +1284,7 @@ TYPE_CODE_FP128 Record
 
 ``[FP128]``
 
-The ``FP128`` record (code 14) adds an ``fp128`` (128-bit floating point) type
+The ``FP128`` record (code 15) adds an ``fp128`` (128-bit floating point) type
 to the type table.
 
 TYPE_CODE_PPC_FP128 Record
@@ -1276,7 +1292,7 @@ TYPE_CODE_PPC_FP128 Record
 
 ``[PPC_FP128]``
 
-The ``PPC_FP128`` record (code 15) adds a ``ppc_fp128`` (128-bit floating point)
+The ``PPC_FP128`` record (code 16) adds a ``ppc_fp128`` (128-bit floating point)
 type to the type table.
 
 TYPE_CODE_METADATA Record
@@ -1284,21 +1300,21 @@ TYPE_CODE_METADATA Record
 
 ``[METADATA]``
 
-The ``METADATA`` record (code 16) adds a ``metadata`` type to the type table.
+The ``METADATA`` record (code 17) adds a ``metadata`` type to the type table.
 
 TYPE_CODE_X86_MMX Record
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 ``[X86_MMX]``
 
-The ``X86_MMX`` record (code 17) adds an ``x86_mmx`` type to the type table.
+The ``X86_MMX`` record (code 18) adds an ``x86_mmx`` type to the type table.
 
 TYPE_CODE_STRUCT_ANON Record
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 ``[STRUCT_ANON, ispacked, ...eltty...]``
 
-The ``STRUCT_ANON`` record (code 18) adds a literal struct type to the type
+The ``STRUCT_ANON`` record (code 19) adds a literal struct type to the type
 table. The operand fields are
 
 * *ispacked*: Non-zero if the type represents a packed structure
@@ -1311,7 +1327,7 @@ TYPE_CODE_STRUCT_NAME Record
 
 ``[STRUCT_NAME, ...string...]``
 
-The ``STRUCT_NAME`` record (code 19) contains a variable number of values
+The ``STRUCT_NAME`` record (code 20) contains a variable number of values
 representing the bytes of a struct name. The next ``OPAQUE`` or
 ``STRUCT_NAMED`` record will use this name.
 
@@ -1320,7 +1336,7 @@ TYPE_CODE_STRUCT_NAMED Record
 
 ``[STRUCT_NAMED, ispacked, ...eltty...]``
 
-The ``STRUCT_NAMED`` record (code 20) adds an identified struct type to the
+The ``STRUCT_NAMED`` record (code 21) adds an identified struct type to the
 type table, with a name defined by a previously encountered ``STRUCT_NAME``
 record. The operand fields are
 
@@ -1334,7 +1350,7 @@ TYPE_CODE_FUNCTION Record
 
 ``[FUNCTION, vararg, retty, ...paramty... ]``
 
-The ``FUNCTION`` record (code 21) adds a function type to the type table. The
+The ``FUNCTION`` record (code 22) adds a function type to the type table. The
 operand fields are
 
 * *vararg*: Non-zero if the type represents a varargs function
@@ -1349,14 +1365,14 @@ TYPE_CODE_X86_AMX Record
 
 ``[X86_AMX]``
 
-The ``X86_AMX`` record (code 24) adds an ``x86_amx`` type to the type table.
+The ``X86_AMX`` record (code 25) adds an ``x86_amx`` type to the type table.
 
 TYPE_CODE_TARGET_TYPE Record
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 ``[TARGET_TYPE, num_tys, ...ty_params..., ...int_params... ]``
 
-The ``TARGET_TYPE`` record (code 26) adds a target extension type to the type
+The ``TARGET_TYPE`` record (code 27) adds a target extension type to the type
 table, with a name defined by a previously encountered ``STRUCT_NAME`` record.
 The operand fields are
 

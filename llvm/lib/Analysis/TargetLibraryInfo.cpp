@@ -205,8 +205,8 @@ static void initialize(TargetLibraryInfoImpl &TLI, const Triple &T,
     return;
   }
 
-  // memset_pattern{4,8,16} is only available on iOS 3.0 and Mac OS X 10.5 and
-  // later. All versions of watchOS support it.
+  // memset_pattern16 is only available on iOS 3.0 and Mac OS X 10.5 and later.
+  // All versions of watchOS support it.
   if (T.isMacOSX()) {
     // available IO unlocked variants on Mac OS X
     TLI.setAvailable(LibFunc_getc_unlocked);

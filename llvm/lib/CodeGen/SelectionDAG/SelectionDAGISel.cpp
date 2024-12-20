@@ -2472,7 +2472,7 @@ void SelectionDAGISel::Select_PATCHPOINT(SDNode *N) {
 
 /// GetVBR - decode a vbr encoding whose top bit is set.
 LLVM_ATTRIBUTE_ALWAYS_INLINE static uint64_t
-GetVBR(uint64_t Val, const unsigned char *MatcherTable, unsigned &Idx) {
+GetVBR(uint64_t Val, const unsigned short *MatcherTable, unsigned &Idx) {
   assert(Val >= 128 && "Not a VBR");
   Val &= 127;  // Remove first vbr bit.
 
@@ -2676,7 +2676,7 @@ MorphNode(SDNode *Node, unsigned TargetOpc, SDVTList VTList,
 
 /// CheckSame - Implements OP_CheckSame.
 LLVM_ATTRIBUTE_ALWAYS_INLINE static bool
-CheckSame(const unsigned char *MatcherTable, unsigned &MatcherIndex, SDValue N,
+CheckSame(const unsigned short *MatcherTable, unsigned &MatcherIndex, SDValue N,
           const SmallVectorImpl<std::pair<SDValue, SDNode *>> &RecordedNodes) {
   // Accept if it is exactly the same as a previously recorded node.
   unsigned RecNo = MatcherTable[MatcherIndex++];
@@ -2686,7 +2686,7 @@ CheckSame(const unsigned char *MatcherTable, unsigned &MatcherIndex, SDValue N,
 
 /// CheckChildSame - Implements OP_CheckChildXSame.
 LLVM_ATTRIBUTE_ALWAYS_INLINE static bool CheckChildSame(
-    const unsigned char *MatcherTable, unsigned &MatcherIndex, SDValue N,
+    const unsigned short *MatcherTable, unsigned &MatcherIndex, SDValue N,
     const SmallVectorImpl<std::pair<SDValue, SDNode *>> &RecordedNodes,
     unsigned ChildNo) {
   if (ChildNo >= N.getNumOperands())
@@ -2697,7 +2697,7 @@ LLVM_ATTRIBUTE_ALWAYS_INLINE static bool CheckChildSame(
 
 /// CheckPatternPredicate - Implements OP_CheckPatternPredicate.
 LLVM_ATTRIBUTE_ALWAYS_INLINE static bool
-CheckPatternPredicate(unsigned Opcode, const unsigned char *MatcherTable,
+CheckPatternPredicate(unsigned Opcode, const unsigned short *MatcherTable,
                       unsigned &MatcherIndex, const SelectionDAGISel &SDISel) {
   bool TwoBytePredNo =
       Opcode == SelectionDAGISel::OPC_CheckPatternPredicateTwoByte;
@@ -2712,7 +2712,7 @@ CheckPatternPredicate(unsigned Opcode, const unsigned char *MatcherTable,
 
 /// CheckNodePredicate - Implements OP_CheckNodePredicate.
 LLVM_ATTRIBUTE_ALWAYS_INLINE static bool
-CheckNodePredicate(unsigned Opcode, const unsigned char *MatcherTable,
+CheckNodePredicate(unsigned Opcode, const unsigned short *MatcherTable,
                    unsigned &MatcherIndex, const SelectionDAGISel &SDISel,
                    SDNode *N) {
   unsigned PredNo = Opcode == SelectionDAGISel::OPC_CheckPredicate
@@ -2722,7 +2722,7 @@ CheckNodePredicate(unsigned Opcode, const unsigned char *MatcherTable,
 }
 
 LLVM_ATTRIBUTE_ALWAYS_INLINE static bool
-CheckOpcode(const unsigned char *MatcherTable, unsigned &MatcherIndex,
+CheckOpcode(const unsigned short *MatcherTable, unsigned &MatcherIndex,
             SDNode *N) {
   uint16_t Opc = MatcherTable[MatcherIndex++];
   Opc |= static_cast<uint16_t>(MatcherTable[MatcherIndex++]) << 8;
@@ -2749,14 +2749,14 @@ CheckChildType(MVT::SimpleValueType VT, SDValue N, const TargetLowering *TLI,
 }
 
 LLVM_ATTRIBUTE_ALWAYS_INLINE static bool
-CheckCondCode(const unsigned char *MatcherTable, unsigned &MatcherIndex,
+CheckCondCode(const unsigned short *MatcherTable, unsigned &MatcherIndex,
               SDValue N) {
   return cast<CondCodeSDNode>(N)->get() ==
          static_cast<ISD::CondCode>(MatcherTable[MatcherIndex++]);
 }
 
 LLVM_ATTRIBUTE_ALWAYS_INLINE static bool
-CheckChild2CondCode(const unsigned char *MatcherTable, unsigned &MatcherIndex,
+CheckChild2CondCode(const unsigned short *MatcherTable, unsigned &MatcherIndex,
                     SDValue N) {
   if (2 >= N.getNumOperands())
     return false;
@@ -2764,7 +2764,7 @@ CheckChild2CondCode(const unsigned char *MatcherTable, unsigned &MatcherIndex,
 }
 
 LLVM_ATTRIBUTE_ALWAYS_INLINE static bool
-CheckValueType(const unsigned char *MatcherTable, unsigned &MatcherIndex,
+CheckValueType(const unsigned short *MatcherTable, unsigned &MatcherIndex,
                SDValue N, const TargetLowering *TLI, const DataLayout &DL) {
   MVT::SimpleValueType VT =
       static_cast<MVT::SimpleValueType>(MatcherTable[MatcherIndex++]);
@@ -2787,7 +2787,7 @@ static uint64_t decodeSignRotatedValue(uint64_t V) {
 }
 
 LLVM_ATTRIBUTE_ALWAYS_INLINE static bool
-CheckInteger(const unsigned char *MatcherTable, unsigned &MatcherIndex,
+CheckInteger(const unsigned short *MatcherTable, unsigned &MatcherIndex,
              SDValue N) {
   int64_t Val = MatcherTable[MatcherIndex++];
   if (Val & 128)
@@ -2800,7 +2800,7 @@ CheckInteger(const unsigned char *MatcherTable, unsigned &MatcherIndex,
 }
 
 LLVM_ATTRIBUTE_ALWAYS_INLINE static bool
-CheckChildInteger(const unsigned char *MatcherTable, unsigned &MatcherIndex,
+CheckChildInteger(const unsigned short *MatcherTable, unsigned &MatcherIndex,
                   SDValue N, unsigned ChildNo) {
   if (ChildNo >= N.getNumOperands())
     return false;  // Match fails if out of range child #.
@@ -2808,7 +2808,7 @@ CheckChildInteger(const unsigned char *MatcherTable, unsigned &MatcherIndex,
 }
 
 LLVM_ATTRIBUTE_ALWAYS_INLINE static bool
-CheckAndImm(const unsigned char *MatcherTable, unsigned &MatcherIndex,
+CheckAndImm(const unsigned short *MatcherTable, unsigned &MatcherIndex,
             SDValue N, const SelectionDAGISel &SDISel) {
   int64_t Val = MatcherTable[MatcherIndex++];
   if (Val & 128)
@@ -2821,7 +2821,7 @@ CheckAndImm(const unsigned char *MatcherTable, unsigned &MatcherIndex,
 }
 
 LLVM_ATTRIBUTE_ALWAYS_INLINE static bool
-CheckOrImm(const unsigned char *MatcherTable, unsigned &MatcherIndex, SDValue N,
+CheckOrImm(const unsigned short *MatcherTable, unsigned &MatcherIndex, SDValue N,
            const SelectionDAGISel &SDISel) {
   int64_t Val = MatcherTable[MatcherIndex++];
   if (Val & 128)
@@ -2839,7 +2839,7 @@ CheckOrImm(const unsigned char *MatcherTable, unsigned &MatcherIndex, SDValue N,
 /// known to pass, set Result=false and return the MatcherIndex to continue
 /// with.  If the current predicate is unknown, set Result=false and return the
 /// MatcherIndex to continue with.
-static unsigned IsPredicateKnownToFail(const unsigned char *Table,
+static unsigned IsPredicateKnownToFail(const unsigned short *Table,
                                        unsigned Index, SDValue N,
                                        bool &Result,
                                        const SelectionDAGISel &SDISel,
@@ -3049,7 +3049,7 @@ public:
 } // end anonymous namespace
 
 void SelectionDAGISel::SelectCodeCommon(SDNode *NodeToMatch,
-                                        const unsigned char *MatcherTable,
+                                        const unsigned short *MatcherTable,
                                         unsigned TableSize) {
   // FIXME: Should these even be selected?  Handle these cases in the caller?
   switch (NodeToMatch->getOpcode()) {

@@ -1924,6 +1924,68 @@ class DependentSizedMatrixTypeLoc
     : public InheritingConcreteTypeLoc<MatrixTypeLoc,
                                        DependentSizedMatrixTypeLoc,
                                        DependentSizedMatrixType> {};
+#ifdef SCALABLE_MATRIX
+struct ScalableMatrixTypeLocInfo {
+  SourceLocation AttrLoc;
+  SourceRange OperandParens;
+  Expr *RowOperand;
+  Expr *ColumnOperand;
+  Expr *ScalableOperand;
+};
+
+class ScalableMatrixTypeLoc : public ConcreteTypeLoc<UnqualTypeLoc, ScalableMatrixTypeLoc,
+                                             ScalableMatrixType, ScalableMatrixTypeLocInfo> {
+public:
+  /// The location of the attribute name, i.e.
+  ///    float __attribute__((scalable_matrix_type(4, 2, true)))
+  ///                         ^~~~~~~~~~~~~~~~~
+  SourceLocation getAttrNameLoc() const { return getLocalData()->AttrLoc; }
+  void setAttrNameLoc(SourceLocation loc) { getLocalData()->AttrLoc = loc; }
+
+  /// The attribute's row operand, if it has one.
+  ///    float __attribute__((scalable_matrix_type(4, 2)))
+  ///                                              ^
+  Expr *getAttrRowOperand() const { return getLocalData()->RowOperand; }
+  void setAttrRowOperand(Expr *e) { getLocalData()->RowOperand = e; }
+
+  /// The attribute's column operand, if it has one.
+  ///    float __attribute__((scalable_matrix_type(4, 2)))
+  ///                                                 ^
+  Expr *getAttrColumnOperand() const { return getLocalData()->ColumnOperand; }
+  void setAttrColumnOperand(Expr *e) { getLocalData()->ColumnOperand = e; }
+
+  /// The attribute's column operand, if it has one.
+  ///    float __attribute__((scalable_matrix_type(4, 2, true)))
+  ///                                                    ^
+  Expr *getAttrScalableOperand() const { return getLocalData()->ScalableOperand; }
+  void setAttrScalableOperand(Expr *e) { getLocalData()->ScalableOperand = e; }
+
+  /// The location of the parentheses around the operand, if there is
+  /// an operand.
+  ///    float __attribute__((scalable_matrix_type(4, 2, true)))
+  ///                                             ^          ^
+  SourceRange getAttrOperandParensRange() const {
+    return getLocalData()->OperandParens;
+  }
+  void setAttrOperandParensRange(SourceRange range) {
+    getLocalData()->OperandParens = range;
+  }
+
+  SourceRange getLocalSourceRange() const {
+    SourceRange range(getAttrNameLoc());
+    range.setEnd(getAttrOperandParensRange().getEnd());
+    return range;
+  }
+
+  void initializeLocal(ASTContext &Context, SourceLocation loc) {
+    setAttrNameLoc(loc);
+    setAttrOperandParensRange(loc);
+    setAttrRowOperand(nullptr);
+    setAttrColumnOperand(nullptr);
+    setAttrScalableOperand(nullptr);
+  }
+};
+#endif
 
 // FIXME: location of the '_Complex' keyword.
 class ComplexTypeLoc : public InheritingConcreteTypeLoc<TypeSpecTypeLoc,

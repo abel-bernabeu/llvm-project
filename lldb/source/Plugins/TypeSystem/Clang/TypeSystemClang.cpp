@@ -4188,6 +4188,9 @@ TypeSystemClang::GetTypeClass(lldb::opaque_compiler_type_t type) {
   // Matrix types that we're not sure how to display at the moment.
   case clang::Type::ConstantMatrix:
   case clang::Type::DependentSizedMatrix:
+#ifdef SCALABLE_MATRIX
+  case clang::Type::ScalableMatrix:
+#endif
     break;
   }
   // We don't know hot to display this type...
@@ -4780,6 +4783,11 @@ lldb::Encoding TypeSystemClang::GetEncoding(lldb::opaque_compiler_type_t type,
     // TODO: Set this to more than one???
     break;
 
+#ifdef SCALABLE_MATRIX
+  case clang::Type::ScalableMatrix:
+  break;
+#endif
+
   case clang::Type::BitInt:
   case clang::Type::DependentBitInt:
     return qual_type->isUnsignedIntegerType() ? lldb::eEncodingUint
@@ -4848,6 +4856,10 @@ lldb::Encoding TypeSystemClang::GetEncoding(lldb::opaque_compiler_type_t type,
     case clang::BuiltinType::Double:
     case clang::BuiltinType::LongDouble:
     case clang::BuiltinType::BFloat16:
+#ifdef FP8_DATATYPES
+    case clang::BuiltinType::BF8:
+    case clang::BuiltinType::HF8:
+#endif
     case clang::BuiltinType::Ibm128:
       return lldb::eEncodingIEEE754;
 
@@ -4991,6 +5003,12 @@ lldb::Encoding TypeSystemClang::GetEncoding(lldb::opaque_compiler_type_t type,
 #include "clang/Basic/RISCVVTypes.def"
       break;
 
+#ifdef SCALABLE_MATRIX
+    // Scalable matrix builtin types.
+#define SMAT_BASE(Name, Id, SingletonId) case clang::BuiltinType::Id:
+#include "clang/Basic/ScalableMatrixTypes.def"
+      break;
+#endif
     // WebAssembly builtin types.
     case clang::BuiltinType::WasmExternRef:
       break;
@@ -5105,6 +5123,9 @@ lldb::Format TypeSystemClang::GetFormat(lldb::opaque_compiler_type_t type) {
   case clang::Type::DependentVector:
   case clang::Type::ExtVector:
   case clang::Type::Vector:
+#ifdef SCALABLE_MATRIX
+  case clang::Type::ScalableMatrix:
+#endif
     break;
 
   case clang::Type::BitInt:

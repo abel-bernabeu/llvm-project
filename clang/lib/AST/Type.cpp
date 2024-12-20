@@ -1051,6 +1051,19 @@ public:
                                      T->getNumColumns());
   }
 
+#ifdef SCALABLE_MATRIX
+  QualType VisitScalabletMatrixType(const ScalableMatrixType *T) {
+    QualType elementType = recurse(T->getElementType());
+    if (elementType.isNull())
+      return {};
+    if (elementType.getAsOpaquePtr() == T->getElementType().getAsOpaquePtr())
+      return QualType(T, 0);
+
+    return Ctx.getScalableMatrixType(elementType, T->getNumRows(),
+                                     T->getNumColumns(), T->getScalable());
+  }
+#endif
+
   QualType VisitFunctionNoProtoType(const FunctionNoProtoType *T) {
     QualType returnType = recurse(T->getReturnType());
     if (returnType.isNull())
@@ -1912,6 +1925,12 @@ namespace {
       return Visit(T->getElementType());
     }
 
+#ifdef SCALABLE_MATRIX
+    Type *VisitScalableMatrixType(const ScalableMatrixType *T) {
+      return Visit(T->getElementType());
+    }
+#endif
+
     Type *VisitFunctionProtoType(const FunctionProtoType *T) {
       if (Syntactic && T->hasTrailingReturn())
         return const_cast<FunctionProtoType*>(T);
@@ -2368,7 +2387,11 @@ bool Type::isIncompleteType(NamedDecl **Def) const {
 }
 
 bool Type::isSizelessBuiltinType() const {
+#ifdef SCALABLE_MATRIX
+  if (isSizelessVectorType() || isScalableMatrixSizelessType())
+#else
   if (isSizelessVectorType())
+#endif
     return true;
 
   if (const BuiltinType *BT = getAs<BuiltinType>()) {
@@ -2433,6 +2456,20 @@ bool Type::isRVVSizelessBuiltinType() const {
   return false;
 }
 
+#ifdef SCALABLE_MATRIX
+bool Type::isScalableMatrixSizelessType() const {
+  if (const BuiltinType *BT = getAs<BuiltinType>()) {
+    switch (BT->getKind()) {
+#define SMAT_BASE(Name, Id, SingletonId) case BuiltinType::Id:
+#include "clang/Basic/ScalableMatrixTypes.def"
+      return true;
+    default:
+      return false;
+    }
+  }
+  return false;
+}
+#endif
 bool Type::isSveVLSBuiltinType() const {
   if (const BuiltinType *BT = getAs<BuiltinType>()) {
     switch (BT->getKind()) {
@@ -2476,7 +2513,7 @@ bool Type::isRVVVLSBuiltinType() const {
   if (const BuiltinType *BT = getAs<BuiltinType>()) {
     switch (BT->getKind()) {
 #define RVV_VECTOR_TYPE(Name, Id, SingletonId, NumEls, ElBits, NF, IsSigned,   \
-                        IsFP, IsBF)                                            \
+                        IsFP, IsBF, IsBF8, IsHF8)                              \
   case BuiltinType::Id:                                                        \
     return NF == 1;
 #include "clang/Basic/RISCVVTypes.def"
@@ -3238,6 +3275,12 @@ StringRef BuiltinType::getName(const PrintingPolicy &Policy) const {
     return "unsigned __int128";
   case Half:
     return Policy.Half ? "half" : "__fp16";
+#ifdef FP8_DATATYPES
+  case BF8:
+    return "__bf8";
+  case HF8:
+    return "__hf8";
+#endif
   case BFloat16:
     return "__bf16";
   case Float:
@@ -3369,6 +3412,12 @@ StringRef BuiltinType::getName(const PrintingPolicy &Policy) const {
   case Id:                                                                     \
     return Name;
 #include "clang/Basic/RISCVVTypes.def"
+#ifdef SCALABLE_MATRIX
+#define SMAT_BASE(Name, Id, SingletonId)                                        \
+  case Id:                                                                     \
+    return Name;
+#include "clang/Basic/ScalableMatrixTypes.def"
+#endif
 #define WASM_TYPE(Name, Id, SingletonId)                                       \
   case Id:                                                                     \
     return Name;
@@ -4300,6 +4349,10 @@ static CachedProperties computeCachedProperties(const Type *T) {
   case Type::Vector:
   case Type::ExtVector:
     return Cache::get(cast<VectorType>(T)->getElementType());
+#ifdef SCALABLE_MATRIX
+  case Type::ScalableMatrix:
+    return Cache::get(cast<ScalableMatrixType>(T)->getElementType());
+#endif
   case Type::ConstantMatrix:
     return Cache::get(cast<ConstantMatrixType>(T)->getElementType());
   case Type::FunctionNoProto:
@@ -4391,6 +4444,11 @@ LinkageInfo LinkageComputer::computeTypeLinkageInfo(const Type *T) {
   case Type::ConstantMatrix:
     return computeTypeLinkageInfo(
         cast<ConstantMatrixType>(T)->getElementType());
+#ifdef SCALABLE_MATRIX
+  case Type::ScalableMatrix:
+    return computeTypeLinkageInfo(
+        cast<ScalableMatrixType>(T)->getElementType());
+#endif
   case Type::FunctionNoProto:
     return computeTypeLinkageInfo(cast<FunctionType>(T)->getReturnType());
   case Type::FunctionProto: {
@@ -4537,6 +4595,10 @@ bool Type::canHaveNullability(bool ResultIfUnknown) const {
 #include "clang/Basic/PPCTypes.def"
 #define RVV_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
 #include "clang/Basic/RISCVVTypes.def"
+#ifdef SCALABLE_MATRIX
+#define SMAT_BASE(Name, Id, SingletonId) case BuiltinType::Id:
+#include "clang/Basic/ScalableMatrixTypes.def"
+#endif
 #define WASM_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
 #include "clang/Basic/WebAssemblyReferenceTypes.def"
     case BuiltinType::BuiltinFn:
@@ -4562,6 +4624,9 @@ bool Type::canHaveNullability(bool ResultIfUnknown) const {
   case Type::Vector:
   case Type::ExtVector:
   case Type::ConstantMatrix:
+#ifdef SCALABLE_MATRIX
+  case Type::ScalableMatrix:
+#endif
   case Type::DependentSizedMatrix:
   case Type::DependentAddressSpace:
   case Type::FunctionProto:

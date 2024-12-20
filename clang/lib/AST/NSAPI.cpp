@@ -481,6 +481,10 @@ NSAPI::getNSNumberFactoryMethodKind(QualType T) const {
 #include "clang/Basic/PPCTypes.def"
 #define RVV_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
 #include "clang/Basic/RISCVVTypes.def"
+#ifdef SCALABLE_MATRIX
+#define SMAT_BASE(Name, Id, SingletonId) case BuiltinType::Id:
+#include "clang/Basic/ScalableMatrixTypes.def"
+#endif
 #define WASM_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
 #include "clang/Basic/WebAssemblyReferenceTypes.def"
   case BuiltinType::BoundMember:
@@ -495,6 +499,10 @@ NSAPI::getNSNumberFactoryMethodKind(QualType T) const {
   case BuiltinType::OMPArraySection:
   case BuiltinType::OMPArrayShaping:
   case BuiltinType::OMPIterator:
+#ifdef FP8_DATATYPES
+  case BuiltinType::BF8:
+  case BuiltinType::HF8:
+#endif
   case BuiltinType::BFloat16:
     break;
   }

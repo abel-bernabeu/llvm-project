@@ -401,6 +401,9 @@ static bool initTargetOptions(DiagnosticsEngine &Diags,
   Options.UniqueBasicBlockSectionNames =
       CodeGenOpts.UniqueBasicBlockSectionNames;
   Options.TLSSize = CodeGenOpts.TLSSize;
+#ifdef SCALABLE_MATRIX
+  Options.ScalableMatrixSizeBits = CodeGenOpts.ScalableMatrixSizeBits;
+#endif
   Options.EmulatedTLS = CodeGenOpts.EmulatedTLS;
   Options.DebuggerTuning = CodeGenOpts.getDebuggerTuning();
   Options.EmitStackSizeSection = CodeGenOpts.StackSizeSection;

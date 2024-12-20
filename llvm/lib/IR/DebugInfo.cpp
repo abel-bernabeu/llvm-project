@@ -1318,6 +1318,17 @@ LLVMDIBuilderCreateVectorType(LLVMDIBuilderRef Builder, uint64_t Size,
 }
 
 LLVMMetadataRef
+LLVMDIBuilderCreateVectorType(LLVMDIBuilderRef Builder, uint64_t Size, uint64_t Size2,
+                              uint32_t AlignInBits, LLVMMetadataRef Ty,
+                              LLVMMetadataRef *Subscripts,
+                              unsigned NumSubscripts) {
+  auto Subs = unwrap(Builder)->getOrCreateArray({unwrap(Subscripts),
+                                                 NumSubscripts});
+  return wrap(unwrap(Builder)->createScalableMatrixType(Size, Size2, AlignInBits,
+                                                        unwrapDI<DIType>(Ty), Subs));
+}
+
+LLVMMetadataRef
 LLVMDIBuilderCreateBasicType(LLVMDIBuilderRef Builder, const char *Name,
                              size_t NameLen, uint64_t SizeInBits,
                              LLVMDWARFTypeEncoding Encoding,

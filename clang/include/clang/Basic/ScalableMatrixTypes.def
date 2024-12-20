@@ -1,0 +1,366 @@
+//===-- ScalableMatrixTypes.def - Scalable matrix types -*- C++ --------*--===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines various scalable matrix builtin types. The macros are:
+//
+// - SMAT_BASE(Name, Id, SingletonId)
+//
+//   A builtin type that has not been covered by any other #define
+//   Defining this macro covers all the builtins.
+//
+// - SMAT_TYPE(Name, Id, SingletonId, NumEls, NumEls2, ElBits, IsSigned,
+//                   IsFP, IsBF)
+//   An scalable matrix.
+//
+// where:
+//
+// - Name is the name of the builtin type.
+//
+// - Id is the enumerator defining the type.
+//
+// - SingletonId is the global singleton of this type.
+//
+// - NumEls enumerates the number of the elements in first dimension.
+//
+// - NumEls2 enumerates the number of elements in the second dimension.
+//
+// - ElBits is the size of one element in bits.
+//
+// - IsSigned is true for vectors of signed integer elements and
+//   for vectors of floating-point elements.
+//
+// - IsBF8 is true for vectors of bf8 elements.
+//
+// - IsHF8 is true for vectors of hf8 elements.
+//
+// - IsBF16 is true for vectors of bf16 elements.
+//
+// - IsFP16 is true for vectors of fp16 elements.
+//
+// - IsFP32 is true for vectors of fp32 elements.
+//
+// - IsFP64 is true for vectors of fp64 elements.
+//
+//===----------------------------------------------------------------------===//
+
+#ifdef SCALABLE_MATRIX
+
+#ifndef SMAT_BASE
+#define SMAT_BASE(Name, Id, SingletonId)
+#endif
+
+#ifndef SMAT_TYPE
+#define SMAT_TYPE(Name, Id, SingletonId, NumEls, NumEls2, ElBits, IsSigned,    \
+                  IsBF8, IsHF8, IsBF16, IsFP16, IsFP32, IsFP64)                \
+  SMAT_BASE(Name, Id, SingletonId)
+#endif
+
+#ifndef SMAT_FIXED_TYPE_INT
+#define SMAT_FIXED_TYPE_INT(Name, Id, SingletonId, NumEls, NumEls2, ElBits,    \
+                            IsSigned)                                          \
+  SMAT_TYPE(Name, Id, SingletonId, NumEls, NumEls2, ElBits, IsSigned, false,   \
+            false, false, false, false, false)
+#endif
+
+#ifndef SMAT_FIXED_TYPE_BF8
+#define SMAT_FIXED_TYPE_BF8(Name, Id, SingletonId, NumEls, NumEls2)            \
+  SMAT_TYPE(Name, Id, SingletonId, NumEls, NumEls2, 8, false, true, false,     \
+            false, false, false, false)
+#endif
+
+#ifndef SMAT_FIXED_TYPE_HF8
+#define SMAT_FIXED_TYPE_HF8(Name, Id, SingletonId, NumEls, NumEls2)            \
+  SMAT_TYPE(Name, Id, SingletonId, NumEls, NumEls2, 8, false, false, true,     \
+            false, false, false, false)
+#endif
+
+#ifndef SMAT_FIXED_TYPE_BFLOAT
+#define SMAT_FIXED_TYPE_BFLOAT(Name, Id, SingletonId, NumEls, NumEls2)         \
+  SMAT_TYPE(Name, Id, SingletonId, NumEls, NumEls2, 16, false, false, false,   \
+            true, false, false, false)
+#endif
+
+#ifndef SMAT_FIXED_TYPE_HALF
+#define SMAT_FIXED_TYPE_HALF(Name, Id, SingletonId, NumEls, NumEls2)           \
+  SMAT_TYPE(Name, Id, SingletonId, NumEls, NumEls2, 16, false, false, false,   \
+            false, true, false, false)
+#endif
+
+#ifndef SMAT_FIXED_TYPE_FLOAT
+#define SMAT_FIXED_TYPE_FLOAT(Name, Id, SingletonId, NumEls, NumEls2)          \
+  SMAT_TYPE(Name, Id, SingletonId, NumEls, NumEls2, 32, false, false, false,   \
+            false, false, true, false)
+#endif
+
+#ifndef SMAT_FIXED_TYPE_DOUBLE
+#define SMAT_FIXED_TYPE_DOUBLE(Name, Id, SingletonId, NumEls, NumEls2)         \
+  SMAT_TYPE(Name, Id, SingletonId, NumEls, NumEls2, 64, false, false, false,   \
+            false, false, false, true)
+#endif
+
+#ifndef SMAT_SCALED_TYPE
+#define SMAT_SCALED_TYPE(Name, Id, SingletonId, NumEls, NumEls2, ElBits,       \
+                         IsSigned, IsBF8, IsHF8, IsBF16, IsFP16, IsFP32,       \
+                         IsFP64)                                               \
+  SMAT_BASE(Name, Id, SingletonId)
+#endif
+
+#ifndef SMAT_SCALED_TYPE_INT
+#define SMAT_SCALED_TYPE_INT(Name, Id, SingletonId, NumEls, NumEls2, ElBits,   \
+                             IsSigned)                                         \
+  SMAT_SCALED_TYPE(Name, Id, SingletonId, NumEls, NumEls2, ElBits, IsSigned,   \
+                   false, false, false, false, false, false)
+#endif
+
+#ifndef SMAT_SCALED_TYPE_BF8
+#define SMAT_SCALED_TYPE_BF8(Name, Id, SingletonId, NumEls, NumEls2)           \
+  SMAT_SCALED_TYPE(Name, Id, SingletonId, NumEls, NumEls2, 8, false, true,     \
+                   false, false, false, false, false)
+#endif
+
+#ifndef SMAT_SCALED_TYPE_HF8
+#define SMAT_SCALED_TYPE_HF8(Name, Id, SingletonId, NumEls, NumEls2)           \
+  SMAT_SCALED_TYPE(Name, Id, SingletonId, NumEls, NumEls2, 8, false, false,    \
+                   true, false, false, false, false)
+#endif
+
+#ifndef SMAT_SCALED_TYPE_BFLOAT
+#define SMAT_SCALED_TYPE_BFLOAT(Name, Id, SingletonId, NumEls, NumEls2)        \
+  SMAT_SCALED_TYPE(Name, Id, SingletonId, NumEls, NumEls2, 16, false, false,   \
+                   false, true, false, false, false)
+#endif
+
+#ifndef SMAT_SCALED_TYPE_HALF
+#define SMAT_SCALED_TYPE_HALF(Name, Id, SingletonId, NumEls, NumEls2)          \
+  SMAT_SCALED_TYPE(Name, Id, SingletonId, NumEls, NumEls2, 16, false, false,   \
+                   false, false, true, false, false)
+#endif
+
+#ifndef SMAT_SCALED_TYPE_FLOAT
+#define SMAT_SCALED_TYPE_FLOAT(Name, Id, SingletonId, NumEls, NumEls2)         \
+  SMAT_SCALED_TYPE(Name, Id, SingletonId, NumEls, NumEls2, 32, false, false,   \
+                   false, false, false, true, false)
+#endif
+
+#ifndef SMAT_SCALED_TYPE_DOUBLE
+#define SMAT_SCALED_TYPE_DOUBLE(Name, Id, SingletonId, NumEls, NumEls2)        \
+  SMAT_SCALED_TYPE(Name, Id, SingletonId, NumEls, NumEls2, 64, false, false,   \
+                   false, false, false, false, true)
+#endif
+
+//===- Fixed size matrix types
+//-------------------------------------------------------===//
+
+SMAT_FIXED_TYPE_INT("__m1x1xi8_t",  m1x1xi8_t,  m1x1xi8Ty,  1, 1,  8, true)
+SMAT_FIXED_TYPE_INT("__m1x2xi8_t",  m1x2xi8_t,  m1x2xi8Ty,  1, 2,  8, true)
+SMAT_FIXED_TYPE_INT("__m1x4xi8_t",  m1x4xi8_t,  m1x4xi8Ty,  1, 4,  8, true)
+SMAT_FIXED_TYPE_INT("__m1x8xi8_t",  m1x8xi8_t,  m1x8xi8Ty,  1, 8,  8, true)
+SMAT_FIXED_TYPE_INT("__m1x16xi8_t", m1x16xi8_t, m1x16xi8Ty, 1, 16, 8, true)
+SMAT_FIXED_TYPE_INT("__m1x32xi8_t", m1x32xi8_t, m1x32xi8Ty, 1, 32, 8, true)
+SMAT_FIXED_TYPE_INT("__m1x64xi8_t", m1x64xi8_t, m1x64xi8Ty, 1, 64, 8, true)
+
+SMAT_FIXED_TYPE_INT("__m1x1xu8_t",  m1x1xu8_t,  m1x1xu8Ty,  1, 1,  8, false)
+SMAT_FIXED_TYPE_INT("__m1x2xu8_t",  m1x2xu8_t,  m1x2xu8Ty,  1, 2,  8, false)
+SMAT_FIXED_TYPE_INT("__m1x4xu8_t",  m1x4xu8_t,  m1x4xu8Ty,  1, 4,  8, false)
+SMAT_FIXED_TYPE_INT("__m1x8xu8_t",  m1x8xu8_t,  m1x8xu8Ty,  1, 8,  8, false)
+SMAT_FIXED_TYPE_INT("__m1x16xu8_t", m1x16xu8_t, m1x16xu8Ty, 1, 16, 8, false)
+SMAT_FIXED_TYPE_INT("__m1x32xu8_t", m1x32xu8_t, m1x32xu8Ty, 1, 32, 8, false)
+SMAT_FIXED_TYPE_INT("__m1x64xu8_t", m1x64xu8_t, m1x64xu8Ty, 1, 64, 8, false)
+
+SMAT_FIXED_TYPE_INT("__m1x1xi16_t",  m1x1xi16_t,  m1x1xi16Ty,  1, 1,  16, true)
+SMAT_FIXED_TYPE_INT("__m1x2xi16_t",  m1x2xi16_t,  m1x2xi16Ty,  1, 2,  16, true)
+SMAT_FIXED_TYPE_INT("__m1x4xi16_t",  m1x4xi16_t,  m1x4xi16Ty,  1, 4,  16, true)
+SMAT_FIXED_TYPE_INT("__m1x8xi16_t",  m1x8xi16_t,  m1x8xi16Ty,  1, 8,  16, true)
+SMAT_FIXED_TYPE_INT("__m1x16xi16_t", m1x16xi16_t, m1x16xi16Ty, 1, 16, 16, true)
+SMAT_FIXED_TYPE_INT("__m1x32xi16_t", m1x32xi16_t, m1x32xi16Ty, 1, 32, 16, true)
+
+SMAT_FIXED_TYPE_INT("__m1x1xu16_t",  m1x1xu16_t, m1x1xu16Ty,   1, 1,  16, false)
+SMAT_FIXED_TYPE_INT("__m1x2xu16_t",  m1x2xu16_t, m1x2xu16Ty,   1, 2,  16, false)
+SMAT_FIXED_TYPE_INT("__m1x4xu16_t",  m1x4xu16_t, m1x4xu16Ty,   1, 4,  16, false)
+SMAT_FIXED_TYPE_INT("__m1x8xu16_t",  m1x8xu16_t, m1x8xu16Ty,   1, 8,  16, false)
+SMAT_FIXED_TYPE_INT("__m1x16xu16_t", m1x16xu16_t, m1x16xu16Ty, 1, 16, 16, false)
+SMAT_FIXED_TYPE_INT("__m1x32xu16_t", m1x32xu16_t, m1x32xu16Ty, 1, 32, 16, false)
+
+SMAT_FIXED_TYPE_INT("__m1x1xi32_t",  m1x1xi32_t,  m1x1xi32Ty,  1, 1,  32, true)
+SMAT_FIXED_TYPE_INT("__m1x2xi32_t",  m1x2xi32_t,  m1x2xi32Ty,  1, 2,  32, true)
+SMAT_FIXED_TYPE_INT("__m1x4xi32_t",  m1x4xi32_t,  m1x4xi32Ty,  1, 4,  32, true)
+SMAT_FIXED_TYPE_INT("__m1x8xi32_t",  m1x8xi32_t,  m1x8xi32Ty,  1, 8,  32, true)
+SMAT_FIXED_TYPE_INT("__m1x16xi32_t", m1x16xi32_t, m1x16xi32Ty, 1, 16, 32, true)
+
+SMAT_FIXED_TYPE_INT("__m1x1xu32_t",  m1x1xu32_t,  m1x1xu32Ty,  1, 1,  32, false)
+SMAT_FIXED_TYPE_INT("__m1x2xu32_t",  m1x2xu32_t,  m1x2xu32Ty,  1, 2,  32, false)
+SMAT_FIXED_TYPE_INT("__m1x4xu32_t",  m1x4xu32_t,  m1x4xu32Ty,  1, 4,  32, false)
+SMAT_FIXED_TYPE_INT("__m1x8xu32_t",  m1x8xu32_t,  m1x8xu32Ty,  1, 8,  32, false)
+SMAT_FIXED_TYPE_INT("__m1x16xu32_t", m1x16xu32_t, m1x16xu32Ty, 1, 16, 32, false)
+
+SMAT_FIXED_TYPE_INT("__m1x1xi64_t",  m1x1xi64_t, m1x1xi64Ty, 1, 1, 64, true)
+SMAT_FIXED_TYPE_INT("__m1x2xi64_t",  m1x2xi64_t, m1x2xi64Ty, 1, 2, 64, true)
+SMAT_FIXED_TYPE_INT("__m1x4xi64_t",  m1x4xi64_t, m1x4xi64Ty, 1, 4, 64, true)
+SMAT_FIXED_TYPE_INT("__m1x8xi64_t",  m1x8xi64_t, m1x8xi64Ty, 1, 8, 64, true)
+
+SMAT_FIXED_TYPE_INT("__m1x1xu64_t",  m1x1xu64_t, m1x1xu64Ty, 1, 1, 64, false)
+SMAT_FIXED_TYPE_INT("__m1x2xu64_t",  m1x2xu64_t, m1x2xu64Ty, 1, 2, 64, false)
+SMAT_FIXED_TYPE_INT("__m1x4xu64_t",  m1x4xu64_t, m1x4xu64Ty, 1, 4, 64, false)
+SMAT_FIXED_TYPE_INT("__m1x8xu64_t",  m1x8xu64_t, m1x8xu64Ty, 1, 8, 64, false)
+
+SMAT_FIXED_TYPE_BF8("__m1x1xbf8_t",  m1x1xbf8_t,  m1x1xbf8Ty,  1, 1)
+SMAT_FIXED_TYPE_BF8("__m1x2xbf8_t",  m1x2xbf8_t,  m1x2xbf8Ty,  1, 2)
+SMAT_FIXED_TYPE_BF8("__m1x4xbf8_t",  m1x4xbf8_t,  m1x4xbf8Ty,  1, 4)
+SMAT_FIXED_TYPE_BF8("__m1x8xbf8_t",  m1x8xbf8_t,  m1x8xbf8Ty,  1, 8)
+SMAT_FIXED_TYPE_BF8("__m1x16xbf8_t", m1x16xbf8_t, m1x16xbf8Ty, 1, 16)
+SMAT_FIXED_TYPE_BF8("__m1x32xbf8_t", m1x32xbf8_t, m1x32xbf8Ty, 1, 32)
+
+SMAT_FIXED_TYPE_HF8("__m1x1xhf8_t",  m1x1xhf8_t,  m1x1xhf8Ty,  1, 1)
+SMAT_FIXED_TYPE_HF8("__m1x2xhf8_t",  m1x2xhf8_t,  m1x2xhf8Ty,  1, 2)
+SMAT_FIXED_TYPE_HF8("__m1x4xhf8_t",  m1x4xhf8_t,  m1x4xhf8Ty,  1, 4)
+SMAT_FIXED_TYPE_HF8("__m1x8xhf8_t",  m1x8xhf8_t,  m1x8xhf8Ty,  1, 8)
+SMAT_FIXED_TYPE_HF8("__m1x16xhf8_t", m1x16xhf8_t, m1x16xhf8Ty, 1, 16)
+SMAT_FIXED_TYPE_HF8("__m1x32xhf8_t", m1x32xhf8_t, m1x32xhf8Ty, 1, 32)
+
+SMAT_FIXED_TYPE_BFLOAT("__m1x1xbf16_t",  m1x1xbf16_t,  m1x1xbf16Ty,  1, 1)
+SMAT_FIXED_TYPE_BFLOAT("__m1x2xbf16_t",  m1x2xbf16_t,  m1x2xbf16Ty,  1, 2)
+SMAT_FIXED_TYPE_BFLOAT("__m1x4xbf16_t",  m1x4xbf16_t,  m1x4xbf16Ty,  1, 4)
+SMAT_FIXED_TYPE_BFLOAT("__m1x8xbf16_t",  m1x8xbf16_t,  m1x8xbf16Ty,  1, 8)
+SMAT_FIXED_TYPE_BFLOAT("__m1x16xbf16_t", m1x16xbf16_t, m1x16xbf16Ty, 1, 16)
+SMAT_FIXED_TYPE_BFLOAT("__m1x32xbf16_t", m1x32xbf16_t, m1x32xbf16Ty, 1, 32)
+
+SMAT_FIXED_TYPE_HALF("__m1x1xf16_t",  m1x1xf16_t,  m1x1xf16Ty,  1, 1)
+SMAT_FIXED_TYPE_HALF("__m1x2xf16_t",  m1x2xf16_t,  m1x2xf16Ty,  1, 2)
+SMAT_FIXED_TYPE_HALF("__m1x4xf16_t",  m1x4xf16_t,  m1x4xf16Ty,  1, 4)
+SMAT_FIXED_TYPE_HALF("__m1x8xf16_t",  m1x8xf16_t,  m1x8xf16Ty,  1, 8)
+SMAT_FIXED_TYPE_HALF("__m1x16xf16_t", m1x16xf16_t, m1x16xf16Ty, 1, 16)
+SMAT_FIXED_TYPE_HALF("__m1x32xf16_t", m1x32xf16_t, m1x32xf16Ty, 1, 32)
+
+SMAT_FIXED_TYPE_FLOAT("__m1x1xf32_t",  m1x1xf32_t,  m1x1xf32Ty,  1, 1)
+SMAT_FIXED_TYPE_FLOAT("__m1x2xf32_t",  m1x2xf32_t,  m1x2xf32Ty,  1, 2)
+SMAT_FIXED_TYPE_FLOAT("__m1x4xf32_t",  m1x4xf32_t,  m1x4xf32Ty,  1, 4)
+SMAT_FIXED_TYPE_FLOAT("__m1x8xf32_t",  m1x8xf32_t,  m1x8xf32Ty,  1, 8)
+SMAT_FIXED_TYPE_FLOAT("__m1x16xf32_t", m1x16xf32_t, m1x16xf32Ty, 1, 16)
+
+SMAT_FIXED_TYPE_DOUBLE("__m1x1xf64_t", m1x1xf64_t, m1x1xf64Ty, 1, 1)
+SMAT_FIXED_TYPE_DOUBLE("__m1x2xf64_t", m1x2xf64_t, m1x2xf64Ty, 1, 2)
+SMAT_FIXED_TYPE_DOUBLE("__m1x4xf64_t", m1x4xf64_t, m1x4xf64Ty, 1, 4)
+SMAT_FIXED_TYPE_DOUBLE("__m1x8xf64_t", m1x8xf64_t, m1x8xf64Ty, 1, 8)
+
+//===- Scalable matrix types
+//-------------------------------------------------------===//
+
+SMAT_SCALED_TYPE_INT("__mx1xnx1xi8_t",  mx1xnx1xi8_t,  mx1xnx1xi8Ty,  1, 1,  8, true)
+SMAT_SCALED_TYPE_INT("__mx1xnx2xi8_t",  mx1xnx2xi8_t,  mx1xnx2xi8Ty,  1, 2,  8, true)
+SMAT_SCALED_TYPE_INT("__mx1xnx4xi8_t",  mx1xnx4xi8_t,  mx1xnx4xi8Ty,  1, 4,  8, true)
+SMAT_SCALED_TYPE_INT("__mx1xnx8xi8_t",  mx1xnx8xi8_t,  mx1xnx8xi8Ty,  1, 8,  8, true)
+SMAT_SCALED_TYPE_INT("__mx1xnx16xi8_t", mx1xnx16xi8_t, mx1xnx16xi8Ty, 1, 16, 8, true)
+SMAT_SCALED_TYPE_INT("__mx1xnx32xi8_t", mx1xnx32xi8_t, mx1xnx32xi8Ty, 1, 32, 8, true)
+SMAT_SCALED_TYPE_INT("__mx1xnx64xi8_t", mx1xnx64xi8_t, mx1xnx64xi8Ty, 1, 64, 8, true)
+
+SMAT_SCALED_TYPE_INT("__mx1xnx1xu8_t",  mx1xnx1xu8_t,  mx1xnx1xu8Ty,  1, 1,  8, false)
+SMAT_SCALED_TYPE_INT("__mx1xnx2xu8_t",  mx1xnx2xu8_t,  mx1xnx2xu8Ty,  1, 2,  8, false)
+SMAT_SCALED_TYPE_INT("__mx1xnx4xu8_t",  mx1xnx4xu8_t,  mx1xnx4xu8Ty,  1, 4,  8, false)
+SMAT_SCALED_TYPE_INT("__mx1xnx8xu8_t",  mx1xnx8xu8_t,  mx1xnx8xu8Ty,  1, 8,  8, false)
+SMAT_SCALED_TYPE_INT("__mx1xnx16xu8_t", mx1xnx16xu8_t, mx1xnx16xu8Ty, 1, 16, 8, false)
+SMAT_SCALED_TYPE_INT("__mx1xnx32xu8_t", mx1xnx32xu8_t, mx1xnx32xu8Ty, 1, 32, 8, false)
+SMAT_SCALED_TYPE_INT("__mx1xnx64xu8_t", mx1xnx64xu8_t, mx1xnx64xu8Ty, 1, 64, 8, false)
+
+SMAT_SCALED_TYPE_INT("__mx1xnx1xi16_t",  mx1xnx1xi16_t,  mx1xnx1xi16Ty,  1, 1,  16, true)
+SMAT_SCALED_TYPE_INT("__mx1xnx2xi16_t",  mx1xnx2xi16_t,  mx1xnx2xi16Ty,  1, 2,  16, true)
+SMAT_SCALED_TYPE_INT("__mx1xnx4xi16_t",  mx1xnx4xi16_t,  mx1xnx4xi16Ty,  1, 4,  16, true)
+SMAT_SCALED_TYPE_INT("__mx1xnx8xi16_t",  mx1xnx8xi16_t,  mx1xnx8xi16Ty,  1, 8,  16, true)
+SMAT_SCALED_TYPE_INT("__mx1xnx16xi16_t", mx1xnx16xi16_t, mx1xnx16xi16Ty, 1, 16, 16, true)
+SMAT_SCALED_TYPE_INT("__mx1xnx32xi16_t", mx1xnx32xi16_t, mx1xnx32xi16Ty, 1, 32, 16, true)
+
+SMAT_SCALED_TYPE_INT("__mx1xnx1xu16_t",  mx1xnx1xu16_t,  mx1xnx1xu16Ty,  1, 1,  16, false)
+SMAT_SCALED_TYPE_INT("__mx1xnx2xu16_t",  mx1xnx2xu16_t,  mx1xnx2xu16Ty,  1, 2,  16, false)
+SMAT_SCALED_TYPE_INT("__mx1xnx4xu16_t",  mx1xnx4xu16_t,  mx1xnx4xu16Ty,  1, 4,  16, false)
+SMAT_SCALED_TYPE_INT("__mx1xnx8xu16_t",  mx1xnx8xu16_t,  mx1xnx8xu16Ty,  1, 8,  16, false)
+SMAT_SCALED_TYPE_INT("__mx1xnx16xu16_t", mx1xnx16xu16_t, mx1xnx16xu16Ty, 1, 16, 16, false)
+SMAT_SCALED_TYPE_INT("__mx1xnx32xu16_t", mx1xnx32xu16_t, mx1xnx32xu16Ty, 1, 32, 16, false)
+
+SMAT_SCALED_TYPE_INT("__mx1xnx1xi32_t",  mx1xnx1xi32_t,  mx1xnx1xi32Ty,  1, 1,  32, true)
+SMAT_SCALED_TYPE_INT("__mx1xnx2xi32_t",  mx1xnx2xi32_t,  mx1xnx2xi32Ty,  1, 2,  32, true)
+SMAT_SCALED_TYPE_INT("__mx1xnx4xi32_t",  mx1xnx4xi32_t,  mx1xnx4xi32Ty,  1, 4,  32, true)
+SMAT_SCALED_TYPE_INT("__mx1xnx8xi32_t",  mx1xnx8xi32_t,  mx1xnx8xi32Ty,  1, 8,  32, true)
+SMAT_SCALED_TYPE_INT("__mx1xnx16xi32_t", mx1xnx16xi32_t, mx1xnx16xi32Ty, 1, 16, 32, true)
+
+SMAT_SCALED_TYPE_INT("__mx1xnx1xu32_t",  mx1xnx1xu32_t,  mx1xnx1xu32Ty,  1, 1,  32, false)
+SMAT_SCALED_TYPE_INT("__mx1xnx2xu32_t",  mx1xnx2xu32_t,  mx1xnx2xu32Ty,  1, 2,  32, false)
+SMAT_SCALED_TYPE_INT("__mx1xnx4xu32_t",  mx1xnx4xu32_t,  mx1xnx4xu32Ty,  1, 4,  32, false)
+SMAT_SCALED_TYPE_INT("__mx1xnx8xu32_t",  mx1xnx8xu32_t,  mx1xnx8xu32Ty,  1, 8,  32, false)
+SMAT_SCALED_TYPE_INT("__mx1xnx16xu32_t", mx1xnx16xu32_t, mx1xnx16xu32Ty, 1, 16, 32, false)
+
+SMAT_SCALED_TYPE_INT("__mx1xnx1xi64_t", mx1xnx1xi64_t, mx1xnx1xi64Ty, 1, 1, 64, true)
+SMAT_SCALED_TYPE_INT("__mx1xnx2xi64_t", mx1xnx2xi64_t, mx1xnx2xi64Ty, 1, 2, 64, true)
+SMAT_SCALED_TYPE_INT("__mx1xnx4xi64_t", mx1xnx4xi64_t, mx1xnx4xi64Ty, 1, 4, 64, true)
+SMAT_SCALED_TYPE_INT("__mx1xnx8xi64_t", mx1xnx8xi64_t, mx1xnx8xi64Ty, 1, 8, 64, true)
+
+SMAT_SCALED_TYPE_INT("__mx1xnx1xu64_t", mx1xnx1xu64_t, mx1xnx1xu64Ty, 1, 1, 64, false)
+SMAT_SCALED_TYPE_INT("__mx1xnx2xu64_t", mx1xnx2xu64_t, mx1xnx2xu64Ty, 1, 2, 64, false)
+SMAT_SCALED_TYPE_INT("__mx1xnx4xu64_t", mx1xnx4xu64_t, mx1xnx4xu64Ty, 1, 4, 64, false)
+SMAT_SCALED_TYPE_INT("__mx1xnx8xu64_t", mx1xnx8xu64_t, mx1xnx8xu64Ty, 1, 8, 64, false)
+
+SMAT_SCALED_TYPE_BF8("__mx1xnx1xbf8_t",  mx1xnx1xbf8_t,  mx1xnx1xbf8Ty,  1, 1)
+SMAT_SCALED_TYPE_BF8("__mx1xnx2xbf8_t",  mx1xnx2xbf8_t,  mx1xnx2xbf8Ty,  1, 2)
+SMAT_SCALED_TYPE_BF8("__mx1xnx4xbf8_t",  mx1xnx4xbf8_t,  mx1xnx4xbf8Ty,  1, 4)
+SMAT_SCALED_TYPE_BF8("__mx1xnx8xbf8_t",  mx1xnx8xbf8_t,  mx1xnx8xbf8Ty,  1, 8)
+SMAT_SCALED_TYPE_BF8("__mx1xnx16xbf8_t", mx1xnx16xbf8_t, mx1xnx16xbf8Ty, 1, 16)
+SMAT_SCALED_TYPE_BF8("__mx1xnx32xbf8_t", mx1xnx32xbf8_t, mx1xnx32xbf8Ty, 1, 32)
+SMAT_SCALED_TYPE_BF8("__mx1xnx64xbf8_t", mx1xnx64xbf8_t, mx1xnx64xbf8Ty, 1, 64)
+
+SMAT_SCALED_TYPE_HF8("__mx1xnx1xhf8_t",  mx1xnx1xhf8_t,  mx1xnx1xhf8Ty,  1, 1)
+SMAT_SCALED_TYPE_HF8("__mx1xnx2xhf8_t",  mx1xnx2xhf8_t,  mx1xnx2xhf8Ty,  1, 2)
+SMAT_SCALED_TYPE_HF8("__mx1xnx4xhf8_t",  mx1xnx4xhf8_t,  mx1xnx4xhf8Ty,  1, 4)
+SMAT_SCALED_TYPE_HF8("__mx1xnx8xhf8_t",  mx1xnx8xhf8_t,  mx1xnx8xhf8Ty,  1, 8)
+SMAT_SCALED_TYPE_HF8("__mx1xnx16xhf8_t", mx1xnx16xhf8_t, mx1xnx16xhf8Ty, 1, 16)
+SMAT_SCALED_TYPE_HF8("__mx1xnx32xhf8_t", mx1xnx32xhf8_t, mx1xnx32xhf8Ty, 1, 32)
+SMAT_SCALED_TYPE_HF8("__mx1xnx64xhf8_t", mx1xnx64xhf8_t, mx1xnx64xhf8Ty, 1, 64)
+
+SMAT_SCALED_TYPE_BFLOAT("__mx1xnx1xbf16_t",  mx1xnx1xbf16_t,  mx1xnx1xbf16Ty,  1, 1)
+SMAT_SCALED_TYPE_BFLOAT("__mx1xnx2xbf16_t",  mx1xnx2xbf16_t,  mx1xnx2xbf16Ty,  1, 2)
+SMAT_SCALED_TYPE_BFLOAT("__mx1xnx4xbf16_t",  mx1xnx4xbf16_t,  mx1xnx4xbf16Ty,  1, 4)
+SMAT_SCALED_TYPE_BFLOAT("__mx1xnx8xbf16_t",  mx1xnx8xbf16_t,  mx1xnx8xbf16Ty,  1, 8)
+SMAT_SCALED_TYPE_BFLOAT("__mx1xnx16xbf16_t", mx1xnx16xbf16_t, mx1xnx16xbf16Ty, 1, 16)
+SMAT_SCALED_TYPE_BFLOAT("__mx1xnx32xbf16_t", mx1xnx32xbf16_t, mx1xnx32xbf16Ty, 1, 32)
+
+SMAT_SCALED_TYPE_HALF("__mx1xnx1xf16_t",  mx1xnx1xf16_t,  mx1xnx1xf16Ty,  1, 1)
+SMAT_SCALED_TYPE_HALF("__mx1xnx2xf16_t",  mx1xnx2xf16_t,  mx1xnx2xf16Ty,  1, 2)
+SMAT_SCALED_TYPE_HALF("__mx1xnx4xf16_t",  mx1xnx4xf16_t,  mx1xnx4xf16Ty,  1, 4)
+SMAT_SCALED_TYPE_HALF("__mx1xnx8xf16_t",  mx1xnx8xf16_t,  mx1xnx8xf16Ty,  1, 8)
+SMAT_SCALED_TYPE_HALF("__mx1xnx16xf16_t", mx1xnx16xf16_t, mx1xnx16xf16Ty, 1, 16)
+SMAT_SCALED_TYPE_HALF("__mx1xnx32xf16_t", mx1xnx32xf16_t, mx1xnx32xf16Ty, 1, 32)
+
+SMAT_SCALED_TYPE_FLOAT("__mx1xnx1xf32_t",  mx1xnx1xf32_t,  mx1xnx1xf32Ty,  1, 1)
+SMAT_SCALED_TYPE_FLOAT("__mx1xnx2xf32_t",  mx1xnx2xf32_t,  mx1xnx2xf32Ty,  1, 2)
+SMAT_SCALED_TYPE_FLOAT("__mx1xnx4xf32_t",  mx1xnx4xf32_t,  mx1xnx4xf32Ty,  1, 4)
+SMAT_SCALED_TYPE_FLOAT("__mx1xnx8xf32_t",  mx1xnx8xf32_t,  mx1xnx8xf32Ty,  1, 8)
+SMAT_SCALED_TYPE_FLOAT("__mx1xnx16xf32_t", mx1xnx16xf32_t, mx1xnx16xf32Ty, 1, 16)
+
+SMAT_SCALED_TYPE_DOUBLE("__mx1xnx1xf64_t", mx1xnx1xf64_t, mx1xnx1xf64Ty, 1, 1)
+SMAT_SCALED_TYPE_DOUBLE("__mx1xnx2xf64_t", mx1xnx2xf64_t, mx1xnx2xf64Ty, 1, 2)
+SMAT_SCALED_TYPE_DOUBLE("__mx1xnx4xf64_t", mx1xnx4xf64_t, mx1xnx4xf64Ty, 1, 4)
+SMAT_SCALED_TYPE_DOUBLE("__mx1xnx8xf64_t", mx1xnx8xf64_t, mx1xnx8xf64Ty, 1, 8)
+
+#undef SMAT_SCALED_TYPE_DOUBLE
+#undef SMAT_SCALED_TYPE_FLOAT
+#undef SMAT_SCALED_TYPE_HALF
+#undef SMAT_SCALED_TYPE_BFLOAT
+#undef SMAT_SCALED_TYPE_HF8
+#undef SMAT_SCALED_TYPE_BF8
+#undef SMAT_SCALED_TYPE_INT
+#undef SMAT_SCALED_TYPE
+
+#undef SMAT_FIXED_TYPE_DOUBLE
+#undef SMAT_FIXED_TYPE_FLOAT
+#undef SMAT_FIXED_TYPE_HALF
+#undef SMAT_FIXED_TYPE_BFLOAT
+#undef SMAT_FIXED_TYPE_HF8
+#undef SMAT_FIXED_TYPE_BF8
+#undef SMAT_FIXED_TYPE_INT
+#undef SMAT_TYPE
+
+#undef SMAT_BASE
+
+#endif

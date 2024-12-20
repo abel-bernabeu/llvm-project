@@ -448,6 +448,9 @@ namespace llvm {
                                std::pair<Type *, LocTy> &Entry,
                                Type *&ResultTy);
 
+#ifdef SCALABLE_MATRIX
+    bool parseMatrixType(Type *&Result);
+#endif
     bool parseArrayVectorType(Type *&Result, bool IsVector);
     bool parseFunctionType(Type *&Result);
     bool parseTargetExtType(Type *&Result);

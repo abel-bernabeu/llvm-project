@@ -33,12 +33,12 @@ namespace llvm {
   /// type can be represented by an MVT.
   class MVT {
   public:
-    enum SimpleValueType : uint8_t {
+    enum SimpleValueType : uint16_t {
       // Simple value types that aren't explicitly part of this enumeration
       // are considered extended value types.
       INVALID_SIMPLE_VALUE_TYPE = 0,
 
-#define GET_VT_ATTR(Ty, n, sz, Any, Int, FP, Vec, Sc) Ty = n,
+#define GET_VT_ATTR(Ty, n, sz, Any, Int, FP, Vec, Mat, Sc) Ty = n,
 #define GET_VT_RANGES
 #include "llvm/CodeGen/GenVT.inc"
 #undef GET_VT_ATTR
@@ -49,7 +49,7 @@ namespace llvm {
       // This is the current maximum for LAST_VALUETYPE.
       // MVT::MAX_ALLOWED_VALUETYPE is used for asserts and to size bit vectors
       // This value must be a multiple of 32.
-      MAX_ALLOWED_VALUETYPE = 224,
+      MAX_ALLOWED_VALUETYPE = 64000,
     };
 
     static_assert(FIRST_VALUETYPE > 0);
@@ -86,7 +86,11 @@ namespace llvm {
               (SimpleTy >= MVT::FIRST_FP_FIXEDLEN_VECTOR_VALUETYPE &&
                SimpleTy <= MVT::LAST_FP_FIXEDLEN_VECTOR_VALUETYPE) ||
               (SimpleTy >= MVT::FIRST_FP_SCALABLE_VECTOR_VALUETYPE &&
-               SimpleTy <= MVT::LAST_FP_SCALABLE_VECTOR_VALUETYPE));
+               SimpleTy <= MVT::LAST_FP_SCALABLE_VECTOR_VALUETYPE) ||
+              (SimpleTy >= MVT::FIRST_FP_FIXEDLEN_MATRIX_VALUETYPE &&
+               SimpleTy <= MVT::LAST_FP_FIXEDLEN_MATRIX_VALUETYPE) ||
+              (SimpleTy >= MVT::FIRST_FP_SCALABLE_MATRIX_VALUETYPE &&
+               SimpleTy <= MVT::LAST_FP_SCALABLE_MATRIX_VALUETYPE));
     }
 
     /// Return true if this is an integer or a vector integer type.
@@ -96,7 +100,11 @@ namespace llvm {
               (SimpleTy >= MVT::FIRST_INTEGER_FIXEDLEN_VECTOR_VALUETYPE &&
                SimpleTy <= MVT::LAST_INTEGER_FIXEDLEN_VECTOR_VALUETYPE) ||
               (SimpleTy >= MVT::FIRST_INTEGER_SCALABLE_VECTOR_VALUETYPE &&
-               SimpleTy <= MVT::LAST_INTEGER_SCALABLE_VECTOR_VALUETYPE));
+               SimpleTy <= MVT::LAST_INTEGER_SCALABLE_VECTOR_VALUETYPE) ||
+              (SimpleTy >= MVT::FIRST_INTEGER_FIXEDLEN_MATRIX_VALUETYPE &&
+               SimpleTy <= MVT::LAST_INTEGER_FIXEDLEN_MATRIX_VALUETYPE) ||
+              (SimpleTy >= MVT::FIRST_INTEGER_SCALABLE_MATRIX_VALUETYPE &&
+               SimpleTy <= MVT::LAST_INTEGER_SCALABLE_MATRIX_VALUETYPE));
     }
 
     /// Return true if this is an integer, not including vectors.
@@ -118,6 +126,24 @@ namespace llvm {
               SimpleTy <= MVT::LAST_SCALABLE_VECTOR_VALUETYPE);
     }
 
+    /// Return true if this is a vector value type.
+    bool isMatrix() const {
+      return (SimpleTy >= MVT::FIRST_MATRIX_VALUETYPE &&
+              SimpleTy <= MVT::LAST_MATRIX_VALUETYPE);
+    }
+
+    /// Return true if this is a vector value type where the
+    /// runtime length is machine dependent
+    bool isScalableMatrix() const {
+      return (SimpleTy >= MVT::FIRST_SCALABLE_MATRIX_VALUETYPE &&
+              SimpleTy <= MVT::LAST_SCALABLE_MATRIX_VALUETYPE);
+    }
+
+    bool isFixedLengthMatrix() const {
+      return (SimpleTy >= MVT::FIRST_FIXEDLEN_MATRIX_VALUETYPE &&
+              SimpleTy <= MVT::LAST_FIXEDLEN_MATRIX_VALUETYPE);
+    }
+
     /// Return true if this is a custom target type that has a scalable size.
     bool isScalableTargetExtVT() const {
       return SimpleTy == MVT::aarch64svcount;
@@ -125,7 +151,7 @@ namespace llvm {
 
     /// Return true if the type is a scalable type.
     bool isScalableVT() const {
-      return isScalableVector() || isScalableTargetExtVT();
+      return isScalableVector() || isScalableMatrix() || isScalableTargetExtVT();
     }
 
     bool isFixedLengthVector() const {
@@ -176,7 +202,7 @@ namespace llvm {
     /// Return true if this is an overloaded type for TableGen.
     bool isOverloaded() const {
       switch (SimpleTy) {
-#define GET_VT_ATTR(Ty, n, sz, Any, Int, FP, Vec, Sc)                          \
+#define GET_VT_ATTR(Ty, n, sz, Any, Int, FP, Vec, Mat, Sc)                     \
   case Ty:                                                                     \
     return Any;
 #include "llvm/CodeGen/GenVT.inc"
@@ -253,7 +279,11 @@ namespace llvm {
 
     /// If this is a vector, return the element type, otherwise return this.
     MVT getScalarType() const {
-      return isVector() ? getVectorElementType() : *this;
+      if (isMatrix())
+         return getMatrixElementType();
+      else if (isVector())
+         return getVectorElementType();
+      return *this;
     }
 
     MVT getVectorElementType() const {
@@ -269,6 +299,18 @@ namespace llvm {
       }
     }
 
+    MVT getMatrixElementType() const {
+      switch (SimpleTy) {
+      default:
+        llvm_unreachable("Not a matrix MVT!");
+#define GET_VT_MATATTR(Ty, Sc, nElem, nElem2, ElTy, ElSz)                              \
+  case Ty:                                                                     \
+    return ElTy;
+#include "llvm/CodeGen/GenVT.inc"
+#undef GET_VT_MATATTR
+      }
+    }
+
     /// Given a vector type, return the minimum number of elements it contains.
     unsigned getVectorMinNumElements() const {
       switch (SimpleTy) {
@@ -280,6 +322,35 @@ namespace llvm {
     return nElem;
 #include "llvm/CodeGen/GenVT.inc"
 #undef GET_VT_VECATTR
+      }
+    }
+
+
+    /// Given a matrix type, return the minimum number of elements it contains.
+    unsigned getMatrixNumElements() const {
+      switch (SimpleTy) {
+      default:
+        llvm_unreachable("Not a matrix MVT!");
+
+#define GET_VT_MATATTR(Ty, Sc, nElem, nElem2, ElTy, ElSz)                      \
+  case Ty:                                                                     \
+    return nElem;
+#include "llvm/CodeGen/GenVT.inc"
+#undef GET_VT_MATATTR
+      }
+    }
+
+    /// Given a matrix type, return the minimum number of elements it contains.
+    unsigned getMatrixNumElements2() const {
+      switch (SimpleTy) {
+      default:
+        llvm_unreachable("Not a matrix MVT!");
+
+#define GET_VT_MATATTR(Ty, Sc, nElem, nElem2, ElTy, ElSz)                      \
+  case Ty:                                                                     \
+    return nElem2;
+#include "llvm/CodeGen/GenVT.inc"
+#undef GET_VT_MATATTR
       }
     }
 
@@ -303,8 +374,8 @@ namespace llvm {
     /// base size.
     TypeSize getSizeInBits() const {
       static constexpr TypeSize SizeTable[] = {
-#define GET_VT_ATTR(Ty, N, Sz, Any, Int, FP, Vec, Sc)                          \
-  TypeSize(Sz, Sc || Ty == aarch64svcount /* FIXME: Not in the td. */),
+#define GET_VT_ATTR(Ty, N, Sz, Any, Int, FP, Vec, Mat, Sc)                          \
+  TypeSize(Sz, ((Vec && Sc) || Ty == aarch64svcount /* FIXME: Not in the td. */) ? TypeSize::ScaleID::V : (Mat && Sc) ? TypeSize::ScaleID::MN : TypeSize::ScaleID::None),
 #include "llvm/CodeGen/GenVT.inc"
 #undef GET_VT_ATTR
       };
@@ -320,6 +391,7 @@ namespace llvm {
       case iAny:
       case fAny:
       case vAny:
+      case mAny:
       case Any:
         llvm_unreachable("Value type is overloaded.");
       case token:
@@ -351,7 +423,7 @@ namespace llvm {
     /// base size.
     TypeSize getStoreSize() const {
       TypeSize BaseSize = getSizeInBits();
-      return {(BaseSize.getKnownMinValue() + 7) / 8, BaseSize.isScalable()};
+      return {(BaseSize.getKnownMinValue() + 7) / 8, BaseSize.getScale()};
     }
 
     // Return the number of bytes overwritten by a store of this value type or
@@ -399,6 +471,7 @@ namespace llvm {
     /// Return true if this has more bits than VT.
     bool bitsGT(MVT VT) const {
       assert(isScalableVector() == VT.isScalableVector() &&
+             isScalableMatrix() == VT.isScalableMatrix() &&
              "Comparison between scalable and fixed types");
       return knownBitsGT(VT);
     }
@@ -406,6 +479,7 @@ namespace llvm {
     /// Return true if this has no less bits than VT.
     bool bitsGE(MVT VT) const {
       assert(isScalableVector() == VT.isScalableVector() &&
+             isScalableMatrix() == VT.isScalableMatrix() &&
              "Comparison between scalable and fixed types");
       return knownBitsGE(VT);
     }
@@ -413,6 +487,7 @@ namespace llvm {
     /// Return true if this has less bits than VT.
     bool bitsLT(MVT VT) const {
       assert(isScalableVector() == VT.isScalableVector() &&
+             isScalableMatrix() == VT.isScalableMatrix() &&
              "Comparison between scalable and fixed types");
       return knownBitsLT(VT);
     }
@@ -420,12 +495,14 @@ namespace llvm {
     /// Return true if this has no more bits than VT.
     bool bitsLE(MVT VT) const {
       assert(isScalableVector() == VT.isScalableVector() &&
+             isScalableMatrix() == VT.isScalableMatrix() &&
+
              "Comparison between scalable and fixed types");
       return knownBitsLE(VT);
     }
 
     static MVT getFloatingPointVT(unsigned BitWidth) {
-#define GET_VT_ATTR(Ty, n, sz, Any, Int, FP, Vec, Sc)                          \
+#define GET_VT_ATTR(Ty, n, sz, Any, Int, FP, Vec, Mat, Sc)                     \
   if (FP == 3 && sz == BitWidth)                                               \
     return Ty;
 #include "llvm/CodeGen/GenVT.inc"
@@ -435,7 +512,7 @@ namespace llvm {
     }
 
     static MVT getIntegerVT(unsigned BitWidth) {
-#define GET_VT_ATTR(Ty, n, sz, Any, Int, FP, Vec, Sc)                          \
+#define GET_VT_ATTR(Ty, n, sz, Any, Int, FP, Vec, Mat, Sc)                     \
   if (Int == 3 && sz == BitWidth)                                              \
     return Ty;
 #include "llvm/CodeGen/GenVT.inc"
@@ -444,6 +521,7 @@ namespace llvm {
       return (MVT::SimpleValueType)(MVT::INVALID_SIMPLE_VALUE_TYPE);
     }
 
+//////
     static MVT getVectorVT(MVT VT, unsigned NumElements) {
 #define GET_VT_VECATTR(Ty, Sc, nElem, ElTy, ElSz)                              \
   if (!Sc && VT.SimpleTy == ElTy && NumElements == nElem)                      \
@@ -474,6 +552,34 @@ namespace llvm {
       if (EC.isScalable())
         return getScalableVectorVT(VT, EC.getKnownMinValue());
       return getVectorVT(VT, EC.getKnownMinValue());
+    }
+
+    static MVT getMatrixVT(MVT VT, unsigned NumElements, unsigned NumElements2) {
+#define GET_VT_MATATTR(Ty, Sc, nElem, nElem2, ElTy, ElSz)                      \
+  if (!Sc && VT.SimpleTy == ElTy && NumElements == nElem &&                    \
+      NumElements2 == nElem2) \
+    return Ty;
+#include "llvm/CodeGen/GenVT.inc"
+#undef GET_VT_MATATTR
+
+      return (MVT::SimpleValueType)(MVT::INVALID_SIMPLE_VALUE_TYPE);
+    }
+
+    static MVT getScalableMatrixVT(MVT VT, unsigned NumElements, unsigned NumElements2) {
+#define GET_VT_MATATTR(Ty, Sc, nElem, nElem2, ElTy, ElSz)                      \
+  if (Sc && VT.SimpleTy == ElTy && NumElements == nElem &&                     \
+      NumElements2 == nElem2)                                                  \
+    return Ty;
+#include "llvm/CodeGen/GenVT.inc"
+#undef GET_VT_MATATTR
+
+      return (MVT::SimpleValueType)(MVT::INVALID_SIMPLE_VALUE_TYPE);
+    }
+
+    static MVT getMatrixVT(MVT VT, unsigned NumElements, unsigned NumElements2, bool IsScalable) {
+      if (IsScalable)
+        return getScalableMatrixVT(VT, NumElements, NumElements2);
+      return getMatrixVT(VT, NumElements, NumElements2);
     }
 
     /// Return the value type corresponding to the specified type.  This returns

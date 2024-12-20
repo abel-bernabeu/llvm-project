@@ -13,7 +13,7 @@
 //   Defining this macro covers all the builtins.
 //
 // - RVV_VECTOR_TYPE(Name, Id, SingletonId, NumEls, ElBits, IsSigned, IsFP,
-// IsBF)
+// IsBF, IsBF8, IsHF8)
 //   A RISC-V V scalable vector.
 //
 // - RVV_PREDICATE_TYPE(Name, Id, SingletonId, NumEls)
@@ -39,6 +39,12 @@
 //
 // - IsFP is true for vectors of floating-point elements.
 //
+// - IsBF is true for vectors of bfloat16 elements.
+//
+// - IsBF8 is true for vectors of bfloat8 elements.
+//
+// - IsHF8 is true for vectors of hard-float8 elements.
+//
 //===----------------------------------------------------------------------===//
 
 #ifndef RVV_TYPE
@@ -47,7 +53,7 @@
 
 #ifndef RVV_VECTOR_TYPE
 #define RVV_VECTOR_TYPE(Name, Id, SingletonId, NumEls, ElBits, NF, IsSigned,   \
-                        IsFP, IsBF)                                            \
+                        IsFP, IsBF, IsBF8, IsHF8)                              \
   RVV_TYPE(Name, Id, SingletonId)
 #endif
 
@@ -60,17 +66,33 @@
 #define RVV_VECTOR_TYPE_INT(Name, Id, SingletonId, NumEls, ElBits, NF,         \
                             IsSigned)                                          \
   RVV_VECTOR_TYPE(Name, Id, SingletonId, NumEls, ElBits, NF, IsSigned, false,  \
-                  false)
+                  false, false, false)
 #endif
 
 #ifndef RVV_VECTOR_TYPE_FLOAT
 #define RVV_VECTOR_TYPE_FLOAT(Name, Id, SingletonId, NumEls, ElBits, NF)       \
-  RVV_VECTOR_TYPE(Name, Id, SingletonId, NumEls, ElBits, NF, false, true, false)
+  RVV_VECTOR_TYPE(Name, Id, SingletonId, NumEls, ElBits, NF, false, true,      \
+                  false, false, false)
 #endif
 
 #ifndef RVV_VECTOR_TYPE_BFLOAT
 #define RVV_VECTOR_TYPE_BFLOAT(Name, Id, SingletonId, NumEls, ElBits, NF)      \
-  RVV_VECTOR_TYPE(Name, Id, SingletonId, NumEls, ElBits, NF, false, false, true)
+  RVV_VECTOR_TYPE(Name, Id, SingletonId, NumEls, ElBits, NF, false, false,     \
+                  true, false, false)
+#endif
+
+#ifdef FP8_DATATYPES
+#ifndef RVV_VECTOR_TYPE_BF8
+#define RVV_VECTOR_TYPE_BF8(Name, Id, SingletonId, NumEls, ElBits, NF)      \
+  RVV_VECTOR_TYPE(Name, Id, SingletonId, NumEls, ElBits, NF, false, false,  \
+                  false, true, false)
+#endif
+
+#ifndef RVV_VECTOR_TYPE_HF8
+#define RVV_VECTOR_TYPE_HF8(Name, Id, SingletonId, NumEls, ElBits, NF)      \
+  RVV_VECTOR_TYPE(Name, Id, SingletonId, NumEls, ElBits, NF, false, false,  \
+                  false, false, true)
+#endif
 #endif
 
 //===- Vector types -------------------------------------------------------===//
@@ -165,6 +187,17 @@ RVV_PREDICATE_TYPE("__rvv_bool8_t",  RvvBool8,  RvvBool8Ty,  8)
 RVV_PREDICATE_TYPE("__rvv_bool16_t", RvvBool16, RvvBool16Ty, 4)
 RVV_PREDICATE_TYPE("__rvv_bool32_t", RvvBool32, RvvBool32Ty, 2)
 RVV_PREDICATE_TYPE("__rvv_bool64_t", RvvBool64, RvvBool64Ty, 1)
+
+#ifdef FP8_DATATYPES
+RVV_VECTOR_TYPE_BF8("__rvv_bfloat8m1_t",  RvvBfloat8m1,  RvvBfloat8m1Ty,  8,   8, 1)
+RVV_VECTOR_TYPE_BF8("__rvv_bfloat8m2_t",  RvvBfloat8m2,  RvvBfloat8m2Ty,  16,  8, 1)
+RVV_VECTOR_TYPE_BF8("__rvv_bfloat8m4_t",  RvvBfloat8m4,  RvvBfloat8m4Ty,  32,  8, 1)
+RVV_VECTOR_TYPE_BF8("__rvv_bfloat8m8_t",  RvvBfloat8m8,  RvvBfloat8m8Ty,  64,  8, 1)
+RVV_VECTOR_TYPE_HF8("__rvv_hfloat8m1_t",  RvvHfloat8m1,  RvvHfloat8m1Ty,  8,   8, 1)
+RVV_VECTOR_TYPE_HF8("__rvv_hfloat8m2_t",  RvvHfloat8m2,  RvvHfloat8m2Ty,  16,  8, 1)
+RVV_VECTOR_TYPE_HF8("__rvv_hfloat8m4_t",  RvvHfloat8m4,  RvvHfloat8m4Ty,  32,  8, 1)
+RVV_VECTOR_TYPE_HF8("__rvv_hfloat8m8_t",  RvvHfloat8m8,  RvvHfloat8m8Ty,  64,  8, 1)
+#endif
 
 //===- Tuple vector types -------------------------------------------------===//
 //===- Int8 tuple types --------------------------------------------------===//
@@ -508,6 +541,9 @@ RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16m2x4_t", RvvBFloat16m2x4, RvvBFloat16m2x4T
 RVV_VECTOR_TYPE_BFLOAT("__rvv_bfloat16m4x2_t", RvvBFloat16m4x2, RvvBFloat16m4x2Ty,
                        16, 16, 2)
 
+
+#undef RVV_VECTOR_TYPE_BF8
+#undef RVV_VECTOR_TYPE_HF8
 #undef RVV_VECTOR_TYPE_BFLOAT
 #undef RVV_VECTOR_TYPE_FLOAT
 #undef RVV_VECTOR_TYPE_INT

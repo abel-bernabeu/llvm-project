@@ -38,6 +38,10 @@ enum Kind {
   colon,   // :
 
   kw_vscale,
+#ifdef SCALABLE_MATRIX
+  kw_mn_scale,
+  kw_one_scale,
+#endif
   kw_x,
   kw_true,
   kw_false,

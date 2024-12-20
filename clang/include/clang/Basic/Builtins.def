@@ -25,6 +25,8 @@
 //  s -> short
 //  i -> int
 //  h -> half (__fp16, OpenCL)
+//  m -> Matrix, either fixed size (m<Elts>x<Elts2><type>) or scalable
+//       (mx<Elts>xnx<Elts2><type>)
 //  x -> half (_Float16)
 //  y -> half (__bf16)
 //  f -> float

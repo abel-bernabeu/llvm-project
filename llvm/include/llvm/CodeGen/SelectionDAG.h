@@ -1102,6 +1102,18 @@ public:
   SDValue getVScale(const SDLoc &DL, EVT VT, APInt MulImm,
                     bool ConstantFold = true);
 
+  /// Return a node that represents the runtime scaling 'MulImm * MScale'.
+  SDValue getMScale(const SDLoc &DL, EVT VT, APInt MulImm,
+                    bool ConstantFold = true);
+
+  /// Return a node that represents the runtime scaling 'MulImm * NScale'.
+  SDValue getNScale(const SDLoc &DL, EVT VT, APInt MulImm,
+                    bool ConstantFold = true);
+
+  /// Return a node that represents the runtime scaling 'MulImm * MNScale'.
+  SDValue getMNScale(const SDLoc &DL, EVT VT, APInt MulImm,
+                    bool ConstantFold = true);
+
   SDValue getElementCount(const SDLoc &DL, EVT VT, ElementCount EC,
                           bool ConstantFold = true);
 
@@ -1906,7 +1918,7 @@ public:
 
   /// Create a stack temporary, suitable for holding the specified value type.
   /// If minAlign is specified, the slot size will have at least that alignment.
-  SDValue CreateStackTemporary(EVT VT, unsigned minAlign = 1);
+  SDValue CreateStackTemporary(EVT VT, Align minAlign = Align(1));
 
   /// Create a stack temporary suitable for holding either of the specified
   /// value types.

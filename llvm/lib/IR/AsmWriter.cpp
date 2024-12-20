@@ -560,6 +560,10 @@ void TypePrinting::print(Type *Ty, raw_ostream &OS) {
   case Type::VoidTyID:      OS << "void"; return;
   case Type::HalfTyID:      OS << "half"; return;
   case Type::BFloatTyID:    OS << "bfloat"; return;
+#ifdef FP8_DATATYPES
+  case Type::BF8TyID:       OS << "bf8"; return;
+  case Type::HF8TyID:       OS << "hf8"; return;
+#endif
   case Type::FloatTyID:     OS << "float"; return;
   case Type::DoubleTyID:    OS << "double"; return;
   case Type::X86_FP80TyID:  OS << "x86_fp80"; return;
@@ -631,6 +635,23 @@ void TypePrinting::print(Type *Ty, raw_ostream &OS) {
     OS << '>';
     return;
   }
+#ifdef SCALABLE_MATRIX
+  case Type::ScalableMatrixTyID: {
+    ScalableMatrixType *PTy = cast<ScalableMatrixType>(Ty);
+    auto Count = PTy->getNumElts();
+    auto Count2 = PTy->getNumElts2();
+    auto Scalable = PTy->getScalable();
+    OS << "<";
+    if (Scalable)
+      OS << "mn_scale x " << Count << " x " << Count2;
+    else
+      OS << "one_scale x " << Count << " x " << Count2;
+    OS << ' ';
+    print(PTy->getElementType(), OS);
+    OS << '>';
+    return;
+  }
+#endif
   case Type::TypedPointerTyID: {
     TypedPointerType *TPTy = cast<TypedPointerType>(Ty);
     OS << "typedptr(" << *TPTy->getElementType() << ", "

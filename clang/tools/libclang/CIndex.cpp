@@ -1644,6 +1644,10 @@ bool CursorVisitor::VisitBuiltinTypeLoc(BuiltinTypeLoc TL) {
 #include "clang/Basic/PPCTypes.def"
 #define RVV_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
 #include "clang/Basic/RISCVVTypes.def"
+#ifdef SCALABLE_MATRIX
+#define SMAT_BASE(Name, Id, SingletonId) case BuiltinType::Id:
+#include "clang/Basic/ScalableMatrixTypes.def"
+#endif
 #define WASM_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
 #include "clang/Basic/WebAssemblyReferenceTypes.def"
 #define BUILTIN_TYPE(Id, SingletonId)
@@ -1920,6 +1924,9 @@ DEFAULT_TYPELOC_IMPL(Vector, Type)
 DEFAULT_TYPELOC_IMPL(ExtVector, VectorType)
 DEFAULT_TYPELOC_IMPL(ConstantMatrix, MatrixType)
 DEFAULT_TYPELOC_IMPL(DependentSizedMatrix, MatrixType)
+#ifdef SCALABLE_MATRIX
+DEFAULT_TYPELOC_IMPL(ScalableMatrix, Type)
+#endif
 DEFAULT_TYPELOC_IMPL(FunctionProto, FunctionType)
 DEFAULT_TYPELOC_IMPL(FunctionNoProto, FunctionType)
 DEFAULT_TYPELOC_IMPL(Record, TagType)

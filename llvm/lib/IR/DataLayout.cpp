@@ -815,6 +815,10 @@ Align DataLayout::getAlignment(Type *Ty, bool abi_or_pref) const {
     return getIntegerAlignment(Ty->getIntegerBitWidth(), abi_or_pref);
   case Type::HalfTyID:
   case Type::BFloatTyID:
+#ifdef FP8_DATATYPES
+  case Type::BF8TyID:
+  case Type::HF8TyID:
+#endif
   case Type::FloatTyID:
   case Type::DoubleTyID:
   // PPC_FP128TyID and FP128TyID have different data contents, but the
@@ -837,6 +841,9 @@ Align DataLayout::getAlignment(Type *Ty, bool abi_or_pref) const {
   }
   case Type::X86_MMXTyID:
   case Type::FixedVectorTyID:
+#ifdef SCALABLE_MATRIX
+  case Type::ScalableMatrixTyID:
+#endif
   case Type::ScalableVectorTyID: {
     unsigned BitWidth = getTypeSizeInBits(Ty).getKnownMinValue();
     auto I = findAlignmentLowerBound(VectorAlignments, BitWidth);

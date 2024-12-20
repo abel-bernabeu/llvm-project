@@ -994,6 +994,10 @@ void ModuleBitcodeWriter::writeTypeTable() {
     case Type::VoidTyID:      Code = bitc::TYPE_CODE_VOID;      break;
     case Type::HalfTyID:      Code = bitc::TYPE_CODE_HALF;      break;
     case Type::BFloatTyID:    Code = bitc::TYPE_CODE_BFLOAT;    break;
+#ifdef FP8_DATATYPES
+    case Type::BF8TyID:       Code = bitc::TYPE_CODE_BF8;       break;
+    case Type::HF8TyID:       Code = bitc::TYPE_CODE_HF8;       break;
+#endif
     case Type::FloatTyID:     Code = bitc::TYPE_CODE_FLOAT;     break;
     case Type::DoubleTyID:    Code = bitc::TYPE_CODE_DOUBLE;    break;
     case Type::X86_FP80TyID:  Code = bitc::TYPE_CODE_X86_FP80;  break;
@@ -1077,6 +1081,18 @@ void ModuleBitcodeWriter::writeTypeTable() {
         TypeVals.push_back(true);
       break;
     }
+#ifdef SCALABLE_MATRIX
+    case Type::ScalableMatrixTyID: {
+      ScalableMatrixType *VT = cast<ScalableMatrixType>(T);
+      // SCALABLE MATRIX: [numelts, numels2, eltty, scalable]
+      Code = bitc::TYPE_CODE_SCALABLE_MATRIX;
+      TypeVals.push_back(VT->getNumElts());
+      TypeVals.push_back(VT->getNumElts2());
+      TypeVals.push_back(VE.getTypeID(VT->getElementType()));
+      TypeVals.push_back(VT->getScalable());
+    break;
+    }
+#endif
     case Type::TargetExtTyID: {
       TargetExtType *TET = cast<TargetExtType>(T);
       Code = bitc::TYPE_CODE_TARGET_TYPE;

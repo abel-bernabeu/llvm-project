@@ -767,6 +767,12 @@ void USRGenerator::VisitType(QualType T) {
         case BuiltinType::Id: \
           Out << "@BT@" << Name; break;
 #include "clang/Basic/RISCVVTypes.def"
+#ifdef SCALABLE_MATRIX
+#define SMAT_BASE(Name, Id, SingletonId) \
+        case BuiltinType::Id: \
+          Out << "@BT@" << Name; break;
+#include "clang/Basic/ScalableMatrixTypes.def"
+#endif
 #define WASM_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
 #include "clang/Basic/WebAssemblyReferenceTypes.def"
         case BuiltinType::ShortAccum:
@@ -817,6 +823,12 @@ void USRGenerator::VisitType(QualType T) {
           Out << "@BT@SatUFract"; break;
         case BuiltinType::SatULongFract:
           Out << "@BT@SatULongFract"; break;
+#ifdef FP8_DATATYPES
+        case BuiltinType::BF8:
+          Out << "@BT@__bf8"; break;
+        case BuiltinType::HF8:
+          Out << "@BT@__hf8"; break;
+#endif
         case BuiltinType::BFloat16:
           Out << "@BT@__bf16"; break;
         case BuiltinType::Ibm128:

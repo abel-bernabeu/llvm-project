@@ -39,6 +39,10 @@ public:
     BFloat16Width = 16;
     BFloat16Align = 16;
     BFloat16Format = &llvm::APFloat::BFloat();
+#ifdef FP8_DATATYPES
+    BF8Format = &llvm::APFloat::Float8E5M2();
+    HF8Format = &llvm::APFloat::Float8E4M3FN();
+#endif
     LongDoubleWidth = 128;
     LongDoubleAlign = 128;
     LongDoubleFormat = &llvm::APFloat::IEEEquad();

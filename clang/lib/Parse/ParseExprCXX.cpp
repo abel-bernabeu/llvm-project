@@ -2310,6 +2310,14 @@ void Parser::ParseCXXSimpleTypeSpecifier(DeclSpec &DS) {
   case tok::kw___bf16:
     DS.SetTypeSpecType(DeclSpec::TST_BFloat16, Loc, PrevSpec, DiagID, Policy);
     break;
+#ifdef FP8_DATATYPES
+  case tok::kw___bf8:
+    DS.SetTypeSpecType(DeclSpec::TST_BF8, Loc, PrevSpec, DiagID, Policy);
+    break;
+  case tok::kw___hf8:
+    DS.SetTypeSpecType(DeclSpec::TST_HF8, Loc, PrevSpec, DiagID, Policy);
+    break;
+#endif
   case tok::kw_half:
     DS.SetTypeSpecType(DeclSpec::TST_half, Loc, PrevSpec, DiagID, Policy);
     break;

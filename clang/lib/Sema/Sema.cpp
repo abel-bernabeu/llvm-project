@@ -445,6 +445,14 @@ void Sema::Initialize() {
 #include "clang/Basic/RISCVVTypes.def"
   }
 
+#ifdef SCALABLE_MATRIX
+  if (Context.getTargetInfo().hasScalableMatrixTypes()) {
+#define SMAT_BASE(Name, Id, SingletonId)                                       \
+  addImplicitTypedef(Name, Context.SingletonId);
+#include "clang/Basic/ScalableMatrixTypes.def"
+  }
+#endif
+
   if (Context.getTargetInfo().getTriple().isWasm() &&
       Context.getTargetInfo().hasFeature("reference-types")) {
 #define WASM_TYPE(Name, Id, SingletonId)                                       \
@@ -2006,7 +2014,12 @@ void Sema::checkTypeSupport(QualType Ty, SourceLocation Loc, ValueDecl *D) {
         LongDoubleMismatched = true;
     }
 
-    if ((Ty->isFloat16Type() && !Context.getTargetInfo().hasFloat16Type()) ||
+    if (
+#if FP8_DATATYPES
+        (Ty->isBF8Type() && !Context.getTargetInfo().hasBF8Type()) ||
+        (Ty->isHF8Type() && !Context.getTargetInfo().hasHF8Type()) ||
+#endif
+        (Ty->isFloat16Type() && !Context.getTargetInfo().hasFloat16Type()) ||
         (Ty->isFloat128Type() && !Context.getTargetInfo().hasFloat128Type()) ||
         (Ty->isIbm128Type() && !Context.getTargetInfo().hasIbm128Type()) ||
         (Ty->isIntegerType() && Context.getTypeSize(Ty) == 128 &&

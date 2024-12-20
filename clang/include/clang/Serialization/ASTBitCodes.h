@@ -1066,12 +1066,19 @@ enum PredefinedTypeIDs {
 
   /// A placeholder type for incomplete matrix index operations.
   PREDEF_TYPE_INCOMPLETE_MATRIX_IDX = 72,
+#ifdef FP8_DATATYPES
+  /// \brief The '__bf8' type
+  PREDEF_TYPE_BFLOAT8_ID = 73,
+
+  /// \brief The '__hf8' type
+  PREDEF_TYPE_HF8_ID = 74,
+#endif
 
   /// \brief The '__bf16' type
-  PREDEF_TYPE_BFLOAT16_ID = 73,
+  PREDEF_TYPE_BFLOAT16_ID = 75,
 
   /// \brief The '__ibm128' type
-  PREDEF_TYPE_IBM128_ID = 74,
+  PREDEF_TYPE_IBM128_ID = 76,
 
 /// OpenCL image types with auto numeration
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix)                   \
@@ -1089,6 +1096,11 @@ enum PredefinedTypeIDs {
 // \brief RISC-V V types with auto numeration
 #define RVV_TYPE(Name, Id, SingletonId) PREDEF_TYPE_##Id##_ID,
 #include "clang/Basic/RISCVVTypes.def"
+// \brief RISC-V V types with auto numeration
+#ifdef SCALABLE_MATRIX
+#define SMAT_BASE(Name, Id, SingletonId) PREDEF_TYPE_##Id##_ID,
+#include "clang/Basic/ScalableMatrixTypes.def"
+#endif
 // \brief WebAssembly reference types with auto numeration
 #define WASM_TYPE(Name, Id, SingletonId) PREDEF_TYPE_##Id##_ID,
 #include "clang/Basic/WebAssemblyReferenceTypes.def"
@@ -1101,7 +1113,11 @@ enum PredefinedTypeIDs {
 ///
 /// Type IDs for non-predefined types will start at
 /// NUM_PREDEF_TYPE_IDs.
+#ifdef SCALABLE_MATRIX
+const unsigned NUM_PREDEF_TYPE_IDS = 696;
+#else
 const unsigned NUM_PREDEF_TYPE_IDS = 502;
+#endif
 
 // Ensure we do not overrun the predefined types we reserved
 // in the enum PredefinedTypeIDs above.

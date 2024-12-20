@@ -3217,6 +3217,9 @@ addAssociatedClassesAndNamespaces(AssociatedLookup &Result, QualType Ty) {
     case Type::Vector:
     case Type::ExtVector:
     case Type::ConstantMatrix:
+#ifdef SCALABLE_MATRIX
+    case Type::ScalableMatrix:
+#endif
     case Type::Complex:
     case Type::BitInt:
       break;

@@ -496,6 +496,11 @@ static void getCopyToPartsVector(SelectionDAG &DAG, const SDLoc &dl,
                                  MVT PartVT, const Value *V,
                                  std::optional<CallingConv::ID> CallConv);
 
+static void getCopyToPartsMatrix(SelectionDAG &DAG, const SDLoc &dl,
+                                 SDValue Val, SDValue *Parts, unsigned NumParts,
+                                 MVT PartVT, const Value *V,
+                                 std::optional<CallingConv::ID> CallConv);
+
 /// getCopyToParts - Create a series of nodes that contain the specified value
 /// split into legal parts.  If the parts contain more bits than Val, then, for
 /// integers, ExtendKind can be used to specify how to generate the extra bits.
@@ -510,7 +515,10 @@ getCopyToParts(SelectionDAG &DAG, const SDLoc &DL, SDValue Val, SDValue *Parts,
                                       CallConv))
     return;
   EVT ValueVT = Val.getValueType();
-
+  // Handle the matrix case separately.
+  if (ValueVT.isMatrix())
+    return getCopyToPartsMatrix(DAG, DL, Val, Parts, NumParts, PartVT, V,
+                                CallConv);
   // Handle the vector case separately.
   if (ValueVT.isVector())
     return getCopyToPartsVector(DAG, DL, Val, Parts, NumParts, PartVT, V,
@@ -829,6 +837,28 @@ static void getCopyToPartsVector(SelectionDAG &DAG, const SDLoc &DL,
     for (unsigned i = 0; i != NumIntermediates; ++i)
       getCopyToParts(DAG, DL, Ops[i], &Parts[i * Factor], Factor, PartVT, V,
                      CallConv);
+  }
+}
+
+/// getCopyToPartsMatrix - Create a series of nodes that contain the specified
+/// value split into legal parts.
+static void getCopyToPartsMatrix(SelectionDAG &DAG, const SDLoc &DL,
+                                 SDValue Val, SDValue *Parts, unsigned NumParts,
+                                 MVT PartVT, const Value *V,
+                                 std::optional<CallingConv::ID> CallConv) {
+  EVT ValueVT = Val.getValueType();
+  assert(ValueVT.isMatrix() && "Not a matrix");
+  if (NumParts == 1) {
+    EVT PartEVT = PartVT;
+    if (PartEVT == ValueVT) {
+      // Nothing to do.
+    } else if (PartVT.getSizeInBits() == ValueVT.getSizeInBits()) {
+      // Bitconvert matrix->matrix case.
+      Val = DAG.getNode(ISD::BITCAST, DL, PartVT, Val);
+    }
+    assert(Val.getValueType() == PartVT && "Unexpected matrix part value type");
+    Parts[0] = Val;
+    return;
   }
 }
 
@@ -6699,7 +6729,7 @@ void SelectionDAGBuilder::visitIntrinsicCall(const CallInst &I,
                         MVT::Other),
           Chain);
     } else {
-      SDValue Temp = DAG.CreateStackTemporary(EnvVT, TempAlign.value());
+      SDValue Temp = DAG.CreateStackTemporary(EnvVT, TempAlign);
       int SPFI = cast<FrameIndexSDNode>(Temp.getNode())->getIndex();
       auto MPI =
           MachinePointerInfo::getFixedStack(DAG.getMachineFunction(), SPFI);
@@ -6726,7 +6756,7 @@ void SelectionDAGBuilder::visitIntrinsicCall(const CallInst &I,
     } else {
       // Allocate space in stack, copy environment bits into it and use this
       // memory in SET_FPENV_MEM.
-      SDValue Temp = DAG.CreateStackTemporary(EnvVT, TempAlign.value());
+      SDValue Temp = DAG.CreateStackTemporary(EnvVT, TempAlign);
       int SPFI = cast<FrameIndexSDNode>(Temp.getNode())->getIndex();
       auto MPI =
           MachinePointerInfo::getFixedStack(DAG.getMachineFunction(), SPFI);

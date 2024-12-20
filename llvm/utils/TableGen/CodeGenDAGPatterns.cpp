@@ -541,9 +541,9 @@ bool TypeInfer::EnforceSmallerThan(TypeSetByHwMode &Small, TypeSetByHwMode &Big,
   auto LT = [](MVT A, MVT B) -> bool {
     // Always treat non-scalable MVTs as smaller than scalable MVTs for the
     // purposes of ordering.
-    auto ASize = std::make_tuple(A.isScalableVector(), A.getScalarSizeInBits(),
+    auto ASize = std::make_tuple(A.isScalableMatrix(), A.isScalableVector(), A.getScalarSizeInBits(),
                                  A.getSizeInBits().getKnownMinValue());
-    auto BSize = std::make_tuple(B.isScalableVector(), B.getScalarSizeInBits(),
+    auto BSize = std::make_tuple(B.isScalableMatrix(), B.isScalableVector(), B.getScalarSizeInBits(),
                                  B.getSizeInBits().getKnownMinValue());
     return ASize < BSize;
   };
@@ -553,6 +553,10 @@ bool TypeInfer::EnforceSmallerThan(TypeSetByHwMode &Small, TypeSetByHwMode &Big,
     // return false (to avoid removal).
     if (std::make_tuple(A.isVector(), A.isScalableVector()) !=
         std::make_tuple(B.isVector(), B.isScalableVector()))
+      return false;
+
+    if (std::make_tuple(A.isMatrix(), A.isScalableMatrix()) !=
+        std::make_tuple(B.isMatrix(), B.isScalableMatrix()))
       return false;
 
     return std::make_tuple(A.getScalarSizeInBits(),

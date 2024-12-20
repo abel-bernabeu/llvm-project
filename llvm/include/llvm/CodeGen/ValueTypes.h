@@ -87,6 +87,16 @@ namespace llvm {
       return getExtendedVectorVT(Context, VT, EC);
     }
 
+#ifdef SCALABLE_MATRIX
+    /// Returns the EVT that represents a scalable matrix of NumElements times
+    /// NumElements2 elements, where each element is of type VT.
+    static EVT getMatrixVT(LLVMContext &Context, EVT VT, unsigned NumElements, unsigned NumElements2, bool Scalable) {
+      MVT M = MVT::getMatrixVT(VT.V, NumElements, NumElements2, Scalable);
+      if (M.SimpleTy != MVT::INVALID_SIMPLE_VALUE_TYPE)
+        return M;
+      return getExtendedMatrixVT(Context, VT, NumElements, NumElements2, Scalable);
+    }
+#endif
     /// Return a vector with the same number of elements as this vector, but
     /// with the element type converted to an integer type with the same
     /// bitwidth.
@@ -161,6 +171,19 @@ namespace llvm {
       return isSimple() ? V.isVector() : isExtendedVector();
     }
 
+#ifdef SCALABLE_MATRIX
+    /// Return true if this is a matrix type with dimensions
+    /// known at build time
+    bool isMatrix() const {
+      return isSimple() ? V.isMatrix() : isExtendedMatrix();
+    }
+
+    /// Return true if this is a matrix type where the runtime
+    /// dimensions are machine dependent
+    bool isScalableMatrix() const {
+      return isSimple() ? V.isScalableMatrix() : isExtendedScalableMatrix();
+    }
+#endif
     /// Return true if this is a vector type where the runtime
     /// length is machine dependent
     bool isScalableVector() const {
@@ -174,7 +197,11 @@ namespace llvm {
 
     /// Return true if the type is a scalable type.
     bool isScalableVT() const {
+#ifdef SCALABLE_MATRIX
+      return isScalableVector() || isScalableMatrix()|| isScalableTargetExtVT();
+#else
       return isScalableVector() || isScalableTargetExtVT();
+#endif
     }
 
     /// Return true if this is a 16-bit vector type.
@@ -301,10 +328,20 @@ namespace llvm {
       return V;
     }
 
-    /// If this is a vector type, return the element type, otherwise return
+    /// If this is a matrix or vector type, return the element type, otherwise return
     /// this.
     EVT getScalarType() const {
+#ifdef SCALABLE_MATRIX
+      if (isVector()) {
+        return getVectorElementType();
+      }
+      else if (isMatrix()) {
+        return getMatrixElementType();
+      }
+#else
       return isVector() ? getVectorElementType() : *this;
+#endif
+      return *this;
     }
 
     /// Given a vector type, return the type of each element.
@@ -343,6 +380,25 @@ namespace llvm {
       return getVectorElementCount().getKnownMinValue();
     }
 
+#ifdef SCALABLE_MATRIX
+    /// Given a matrix type, return the type of each element.
+    EVT getMatrixElementType() const {
+      assert(isMatrix() && "Type of the container should be matrix!");
+      if (isSimple())
+        return V.getMatrixElementType();
+      return getExtendedMatrixElementType();
+    }
+
+    /// Given a matrix type, return the number of elements in first dimension.
+    unsigned getMatrixNumElems() const {
+      return V.getMatrixNumElements();
+    }
+
+    /// Given a matrix type, return the number of elements in second dimension.
+    unsigned getMatrixNumElems2() const {
+      return V.getMatrixNumElements2();
+    }
+#endif
     /// Return the size of the specified value type in bits.
     ///
     /// If the value type is a scalable vector type, the scalable property will
@@ -372,7 +428,11 @@ namespace llvm {
     /// base size.
     TypeSize getStoreSize() const {
       TypeSize BaseSize = getSizeInBits();
+#ifdef SCALABLE_MATRIX
+      return {(BaseSize.getKnownMinValue() + 7) / 8, BaseSize.getScale()};
+#else
       return {(BaseSize.getKnownMinValue() + 7) / 8, BaseSize.isScalable()};
+#endif
     }
 
     // Return the number of bytes overwritten by a store of this value type or
@@ -515,10 +575,17 @@ namespace llvm {
                                    bool IsScalable);
     static EVT getExtendedVectorVT(LLVMContext &Context, EVT VT,
                                    ElementCount EC);
+#ifdef SCALABLE_MATRIX
+    static EVT getExtendedMatrixVT(LLVMContext &Context, EVT VT, unsigned NumElements,
+                                   unsigned NumElements2, bool IsScalable);
+#endif
     bool isExtendedFloatingPoint() const LLVM_READONLY;
     bool isExtendedInteger() const LLVM_READONLY;
     bool isExtendedScalarInteger() const LLVM_READONLY;
     bool isExtendedVector() const LLVM_READONLY;
+#ifdef SCALABLE_MATRIX
+    bool isExtendedMatrix() const LLVM_READONLY;
+#endif
     bool isExtended16BitVector() const LLVM_READONLY;
     bool isExtended32BitVector() const LLVM_READONLY;
     bool isExtended64BitVector() const LLVM_READONLY;
@@ -529,7 +596,13 @@ namespace llvm {
     bool isExtended2048BitVector() const LLVM_READONLY;
     bool isExtendedFixedLengthVector() const LLVM_READONLY;
     bool isExtendedScalableVector() const LLVM_READONLY;
+#ifdef SCALABLE_MATRIX
+    bool isExtendedScalableMatrix() const LLVM_READONLY;
+#endif
     EVT getExtendedVectorElementType() const;
+#ifdef SCALABLE_MATRIX
+    EVT getExtendedMatrixElementType() const;
+#endif
     unsigned getExtendedVectorNumElements() const LLVM_READONLY;
     ElementCount getExtendedVectorElementCount() const LLVM_READONLY;
     TypeSize getExtendedSizeInBits() const LLVM_READONLY;

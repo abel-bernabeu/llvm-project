@@ -700,6 +700,10 @@ lltok::Kind LLLexer::LexIdentifier() {
 
   KEYWORD(splat);
   KEYWORD(vscale);
+#ifdef SCALABLE_MATRIX
+  KEYWORD(mn_scale);
+  KEYWORD(one_scale);
+#endif
   KEYWORD(x);
   KEYWORD(blockaddress);
   KEYWORD(dso_local_equivalent);
@@ -820,6 +824,10 @@ lltok::Kind LLLexer::LexIdentifier() {
   TYPEKEYWORD("void",      Type::getVoidTy(Context));
   TYPEKEYWORD("half",      Type::getHalfTy(Context));
   TYPEKEYWORD("bfloat",    Type::getBFloatTy(Context));
+#ifdef FP8_DATATYPES
+  TYPEKEYWORD("bf8",       Type::getBF8Ty(Context));
+  TYPEKEYWORD("hf8",       Type::getHF8Ty(Context));
+#endif
   TYPEKEYWORD("float",     Type::getFloatTy(Context));
   TYPEKEYWORD("double",    Type::getDoubleTy(Context));
   TYPEKEYWORD("x86_fp80",  Type::getX86_FP80Ty(Context));

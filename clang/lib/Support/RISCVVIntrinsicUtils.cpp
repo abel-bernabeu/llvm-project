@@ -309,6 +309,26 @@ void RVVType::initTypeStr() {
     } else
       Str += getTypeString("float");
     break;
+#ifdef FP8_DATATYPES
+  case ScalarTypeKind::BF8:
+    if (isScalar()) {
+      if (ElementBitwidth == 8)
+        Str += "bf8";
+      else
+        llvm_unreachable("Unhandled floating type.");
+    } else
+      Str += getTypeString("bf8");
+    break;
+  case ScalarTypeKind::HF8:
+    if (isScalar()) {
+      if (ElementBitwidth == 8)
+        Str += "hf8";
+      else
+        llvm_unreachable("Unhandled floating type.");
+    } else
+      Str += getTypeString("hf8");
+    break;
+#endif
   case ScalarTypeKind::BFloat:
     if (isScalar()) {
       if (ElementBitwidth == 16)

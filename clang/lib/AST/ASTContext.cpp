@@ -1370,6 +1370,13 @@ void ASTContext::InitBuiltinTypes(const TargetInfo &Target,
 #include "clang/Basic/RISCVVTypes.def"
   }
 
+#ifdef SCALABLE_MATRIX
+  if (Target.hasScalableMatrixTypes()) {
+#define SMAT_BASE(Name, Id, SingletonId)                                        \
+  InitBuiltinType(SingletonId, BuiltinType::Id);
+#include "clang/Basic/ScalableMatrixTypes.def"
+  }
+#endif
   if (Target.getTriple().isWasm() && Target.hasFeature("reference-types")) {
 #define WASM_TYPE(Name, Id, SingletonId)                                       \
   InitBuiltinType(SingletonId, BuiltinType::Id);
@@ -1399,7 +1406,10 @@ void ASTContext::InitBuiltinTypes(const TargetInfo &Target,
 
   // half type (OpenCL 6.1.1.1) / ARM NEON __fp16
   InitBuiltinType(HalfTy, BuiltinType::Half);
-
+#ifdef FP8_DATATYPES
+  InitBuiltinType(BF8Ty, BuiltinType::BF8);
+  InitBuiltinType(HF8Ty, BuiltinType::HF8);
+#endif
   InitBuiltinType(BFloat16Ty, BuiltinType::BFloat16);
 
   // Builtin type used to help define __builtin_va_list.
@@ -1602,6 +1612,12 @@ const llvm::fltSemantics &ASTContext::getFloatTypeSemantics(QualType T) const {
   switch (T->castAs<BuiltinType>()->getKind()) {
   default:
     llvm_unreachable("Not a floating point type!");
+#ifdef FP8_DATATYPES
+  case BuiltinType::BF8:
+    return Target->getBF8Format();
+  case BuiltinType::HF8:
+    return Target->getHF8Format();
+#endif
   case BuiltinType::BFloat16:
     return Target->getBFloat16Format();
   case BuiltinType::Float16:
@@ -1962,6 +1978,19 @@ TypeInfo ASTContext::getTypeInfoImpl(const Type *T) const {
     break;
   }
 
+#ifdef SCALABLE_MATRIX
+  case Type::ScalableMatrix: {
+    const auto *MT = cast<ScalableMatrixType>(T);
+    TypeInfo ElementInfo = getTypeInfo(MT->getElementType());
+    // The internal layout of a matrix value is implementation defined.
+    // Initially be ABI compatible with arrays with respect to alignment and
+    // size.
+    Width = ElementInfo.Width * MT->getNumRows() * MT->getNumColumns();
+    Align = ElementInfo.Align;
+    break;
+  }
+#endif
+
   case Type::Builtin:
     switch (cast<BuiltinType>(T)->getKind()) {
     default: llvm_unreachable("Unknown builtin type!");
@@ -2074,6 +2103,32 @@ TypeInfo ASTContext::getTypeInfoImpl(const Type *T) const {
         Align = AuxTarget->getBFloat16Align();
       }
       break;
+#ifdef FP8_DATATYPES
+    case BuiltinType::BF8:
+      if (Target->hasBF8Type()) {
+        Width = Target->getBF8Width();
+        Align = Target->getBF8Align();
+      } else if ((getLangOpts().SYCLIsDevice ||
+                  (getLangOpts().OpenMP &&
+                   getLangOpts().OpenMPIsTargetDevice)) &&
+                 AuxTarget->hasBF8Type()) {
+        Width = AuxTarget->getBF8Width();
+        Align = AuxTarget->getBF8Align();
+      }
+      break;
+    case BuiltinType::HF8:
+      if (Target->hasHF8Type()) {
+        Width = Target->getHF8Width();
+        Align = Target->getHF8Align();
+      } else if ((getLangOpts().SYCLIsDevice ||
+                  (getLangOpts().OpenMP &&
+                   getLangOpts().OpenMPIsTargetDevice)) &&
+                 AuxTarget->hasHF8Type()) {
+        Width = AuxTarget->getHF8Width();
+        Align = AuxTarget->getHF8Align();
+      }
+      break;
+#endif
     case BuiltinType::Float16:
     case BuiltinType::Half:
       if (Target->hasFloat16Type() || !getLangOpts().OpenMP ||
@@ -2180,7 +2235,7 @@ TypeInfo ASTContext::getTypeInfoImpl(const Type *T) const {
     break;
 #include "clang/Basic/PPCTypes.def"
 #define RVV_VECTOR_TYPE(Name, Id, SingletonId, ElKind, ElBits, NF, IsSigned,   \
-                        IsFP, IsBF)                                            \
+                        IsFP, IsBF, IsBF8, IsHF8)                                            \
   case BuiltinType::Id:                                                        \
     Width = 0;                                                                 \
     Align = ElBits;                                                            \
@@ -2191,6 +2246,14 @@ TypeInfo ASTContext::getTypeInfoImpl(const Type *T) const {
     Align = 8;                                                                 \
     break;
 #include "clang/Basic/RISCVVTypes.def"
+#ifdef SCALABLE_MATRIX
+#define SMAT_BASE(Name, Id, SingletonId)                                       \
+  case BuiltinType::Id:                                                        \
+    Width = 0;                                                                 \
+    Align = 8;                                                                 \
+    break;
+#include "clang/Basic/ScalableMatrixTypes.def"
+#endif
 #define WASM_TYPE(Name, Id, SingletonId)                                       \
   case BuiltinType::Id:                                                        \
     Width = 0;                                                                 \
@@ -2848,8 +2911,8 @@ bool ASTContext::isSentinelNullExpr(const Expr *E) {
   if (E->getType()->isNullPtrType()) return true;
 
   if (E->getType()->isAnyPointerType() &&
-      E->IgnoreParenCasts()->isNullPointerConstant(*this,
-                                                Expr::NPC_ValueDependentIsNull))
+      E->IgnoreParenCasts()->isNullPointerConstant(
+          *this, Expr::NPC_ValueDependentIsNull))
     return true;
 
   // Unfortunately, __null has type 'int'.
@@ -3578,6 +3641,9 @@ QualType ASTContext::getVariableArrayDecayedType(QualType type) const {
   case Type::ConstantMatrix:
   case Type::DependentSizedMatrix:
   case Type::DependentAddressSpace:
+#ifdef SCALABLE_MATRIX
+  case Type::ScalableMatrix:
+#endif
   case Type::ObjCObject:
   case Type::ObjCInterface:
   case Type::ObjCObjectPointer:
@@ -3947,9 +4013,74 @@ ASTContext::getBuiltinVectorTypeInfo(const BuiltinType *Ty) const {
 #define RVV_PREDICATE_TYPE(Name, Id, SingletonId, NumEls)                      \
   case BuiltinType::Id:                                                        \
     return {BoolTy, llvm::ElementCount::getScalable(NumEls), 1};
+#ifdef FP8_DATATYPES
+#define RVV_VECTOR_TYPE_BF8(Name, Id, SingletonId, NumEls, ElBits, NF)         \
+  case BuiltinType::Id:                                                        \
+    return {BF8Ty, llvm::ElementCount::getScalable(NumEls), NF};
+#define RVV_VECTOR_TYPE_HF8(Name, Id, SingletonId, NumEls, ElBits, NF)         \
+  case BuiltinType::Id:                                                        \
+    return {HF8Ty, llvm::ElementCount::getScalable(NumEls), NF};
+#endif
 #include "clang/Basic/RISCVVTypes.def"
   }
 }
+
+#ifdef SCALABLE_MATRIX
+ASTContext::BuiltinScalableMatrixTypeInfo
+ASTContext::getBuiltinScalableMatrixTypeInfo(const BuiltinType *Ty) const {
+  switch (Ty->getKind()) {
+  default:
+    llvm_unreachable("Unsupported builtin scalable matrix type");
+#ifdef SCALABLE_MATRIX
+#define SMAT_FIXED_TYPE_INT(Name, Id, SingletonId, NumEls, NumEls2, ElBits,    \
+                            IsSigned)                                          \
+  case BuiltinType::Id:                                                        \
+    return {getIntTypeForBitwidth(ElBits, IsSigned), NumEls, NumEls2, false};
+#define SMAT_FIXED_TYPE_BF8(Name, Id, SingletonId, NumEls, NumEls2)            \
+  case BuiltinType::Id:                                                        \
+    return {BF8Ty, NumEls, NumEls2, false};
+#define SMAT_FIXED_TYPE_HF8(Name, Id, SingletonId, NumEls, NumEls2)            \
+  case BuiltinType::Id:                                                        \
+    return {HF8Ty, NumEls, NumEls2, false};
+#define SMAT_FIXED_TYPE_BFLOAT(Name, Id, SingletonId, NumEls, NumEls2)         \
+  case BuiltinType::Id:                                                        \
+    return {BFloat16Ty, NumEls, NumEls2, false};
+#define SMAT_FIXED_TYPE_HALF(Name, Id, SingletonId, NumEls, NumEls2)           \
+  case BuiltinType::Id:                                                        \
+    return {Float16Ty, NumEls, NumEls2, false};
+#define SMAT_FIXED_TYPE_FLOAT(Name, Id, SingletonId, NumEls, NumEls2)          \
+  case BuiltinType::Id:                                                        \
+    return {FloatTy, NumEls, NumEls2, false};
+#define SMAT_FIXED_TYPE_DOUBLE(Name, Id, SingletonId, NumEls, NumEls2)         \
+  case BuiltinType::Id:                                                        \
+    return {DoubleTy, NumEls, NumEls2, false};
+#define SMAT_SCALED_TYPE_INT(Name, Id, SingletonId, NumEls, NumEls2, ElBits,   \
+                             IsSigned)                                         \
+  case BuiltinType::Id:                                                        \
+    return {getIntTypeForBitwidth(ElBits, IsSigned), NumEls, NumEls2, true};
+#define SMAT_SCALED_TYPE_BF8(Name, Id, SingletonId, NumEls, NumEls2)           \
+  case BuiltinType::Id:                                                        \
+    return {BF8Ty, NumEls, NumEls2, true};
+#define SMAT_SCALED_TYPE_HF8(Name, Id, SingletonId, NumEls, NumEls2)           \
+  case BuiltinType::Id:                                                        \
+    return {HF8Ty, NumEls, NumEls2, true};
+#define SMAT_SCALED_TYPE_BFLOAT(Name, Id, SingletonId, NumEls, NumEls2)        \
+  case BuiltinType::Id:                                                        \
+    return {BFloat16Ty, NumEls, NumEls2, true};
+#define SMAT_SCALED_TYPE_HALF(Name, Id, SingletonId, NumEls, NumEls2)          \
+  case BuiltinType::Id:                                                        \
+    return {Float16Ty, NumEls, NumEls2, true};
+#define SMAT_SCALED_TYPE_FLOAT(Name, Id, SingletonId, NumEls, NumEls2)         \
+  case BuiltinType::Id:                                                        \
+    return {FloatTy, NumEls, NumEls2, true};
+#define SMAT_SCALED_TYPE_DOUBLE(Name, Id, SingletonId, NumEls, NumEls2)        \
+  case BuiltinType::Id:                                                        \
+    return {DoubleTy, NumEls, NumEls2, true};
+#include "clang/Basic/ScalableMatrixTypes.def"
+#endif
+  }
+}
+#endif
 
 /// getExternrefType - Return a WebAssembly externref type, which represents an
 /// opaque reference to a host value.
@@ -3991,10 +4122,11 @@ QualType ASTContext::getScalableVectorType(QualType EltTy, unsigned NumElts,
   } else if (Target->hasRISCVVTypes()) {
     uint64_t EltTySize = getTypeSize(EltTy);
 #define RVV_VECTOR_TYPE(Name, Id, SingletonId, NumEls, ElBits, NF, IsSigned,   \
-                        IsFP, IsBF)                                            \
+                        IsFP, IsBF, IsBF8, IsHF8)                              \
   if (!EltTy->isBooleanType() &&                                               \
       ((EltTy->hasIntegerRepresentation() &&                                   \
         EltTy->hasSignedIntegerRepresentation() == IsSigned) ||                \
+       (EltTy->isBF8Type() && IsBF8) || (EltTy->isHF8Type() && IsHF8) ||       \
        (EltTy->hasFloatingRepresentation() && !EltTy->isBFloat16Type() &&      \
         IsFP && !IsBF) ||                                                      \
        (EltTy->hasFloatingRepresentation() && EltTy->isBFloat16Type() &&       \
@@ -4008,6 +4140,52 @@ QualType ASTContext::getScalableVectorType(QualType EltTy, unsigned NumElts,
   }
   return QualType();
 }
+
+#ifdef SCALABLE_MATRIX
+/// getScalableMatrixType - Return the unique reference to a scalable matrix
+/// type of the specified element type and dimentions.
+QualType ASTContext::getScalableMatrixType(QualType EltTy, unsigned NumElts,
+                                           unsigned NumElts2,
+                                           bool Scalable) const {
+  if (Target->hasScalableMatrixTypes()) {
+    if (Scalable) {
+      uint64_t EltTySize = getTypeSize(EltTy);
+#define SMAT_SCALED_TYPE(Name, Id, SingletonId, NumEls, NumEls2, ElBits,       \
+                         IsSigned, IsBF8, IsHF8, IsBF16, IsFP16, IsFP32,       \
+                         IsFP64)                                               \
+  if (!EltTy->isBooleanType() &&                                               \
+      ((EltTy->hasIntegerRepresentation() &&                                   \
+        EltTy->hasSignedIntegerRepresentation() == IsSigned) ||                \
+       (EltTy->isBF8Type() && IsBF8) || (EltTy->isHF8Type() && IsHF8) ||       \
+       (EltTy->isBFloat16Type() && IsBF16) ||                                  \
+       (EltTy->isFloat16Type() && IsFP16) ||                                   \
+       (EltTy->isHalfType() && IsFP16) ||                                      \
+       (EltTy->isFloat32Type() && IsFP32) ||                                   \
+       (EltTy->isFloat64Type() && IsFP64)) &&                                  \
+      EltTySize == ElBits && NumElts == NumEls && NumElts2 == NumEls2)         \
+    return SingletonId;
+#include "clang/Basic/ScalableMatrixTypes.def"
+    } else {
+      uint64_t EltTySize = getTypeSize(EltTy);
+#define SMAT_TYPE(Name, Id, SingletonId, NumEls, NumEls2, ElBits, IsSigned,    \
+                  IsBF8, IsHF8, IsBF16, IsFP16, IsFP32, IsFP64)                \
+  if (!EltTy->isBooleanType() &&                                               \
+      ((EltTy->hasIntegerRepresentation() &&                                   \
+        EltTy->hasSignedIntegerRepresentation() == IsSigned) ||                \
+       (EltTy->isBF8Type() && IsBF8) || (EltTy->isHF8Type() && IsHF8) ||       \
+       (EltTy->isBFloat16Type() && IsBF16) ||                                  \
+       (EltTy->isFloat16Type() && IsFP16) ||                                   \
+       (EltTy->isHalfType() && IsFP16) ||                                      \
+       (EltTy->isFloat32Type() && IsFP32) ||                                   \
+       (EltTy->isFloat64Type() && IsFP64)) &&                                  \
+      EltTySize == ElBits && NumElts == NumEls && NumElts2 == NumEls2)         \
+    return SingletonId;
+#include "clang/Basic/ScalableMatrixTypes.def"
+    }
+  }
+  return QualType();
+}
+#endif
 
 /// getVectorType - Return the unique reference to a vector type of
 /// the specified element type and size. VectorType must be a built-in type.
@@ -7998,7 +8176,10 @@ static char getObjCEncodingForPrimitiveType(const ASTContext *C,
     case BuiltinType::Double:     return 'd';
     case BuiltinType::LongDouble: return 'D';
     case BuiltinType::NullPtr:    return '*'; // like char*
-
+#ifdef FP8_DATATYPES
+    case BuiltinType::BF8:
+    case BuiltinType::HF8:
+#endif
     case BuiltinType::BFloat16:
     case BuiltinType::Float16:
     case BuiltinType::Float128:
@@ -8036,6 +8217,10 @@ static char getObjCEncodingForPrimitiveType(const ASTContext *C,
 #include "clang/Basic/AArch64SVEACLETypes.def"
 #define RVV_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
 #include "clang/Basic/RISCVVTypes.def"
+#ifdef SCALABLE_MATRIX
+#define SMAT_BASE(Name, Id, SingletonId) case BuiltinType::Id:
+#include "clang/Basic/ScalableMatrixTypes.def"
+#endif
 #define WASM_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
 #include "clang/Basic/WebAssemblyReferenceTypes.def"
       {
@@ -8495,6 +8680,13 @@ void ASTContext::getObjCEncodingForTypeImpl(QualType T, std::string &S,
     if (NotEncodedT)
       *NotEncodedT = T;
     return;
+
+#ifdef SCALABLE_MATRIX
+  case Type::ScalableMatrix:
+    if (NotEncodedT)
+      *NotEncodedT = T;
+    return;
+#endif
 
   case Type::BitInt:
     if (NotEncodedT)
@@ -9392,6 +9584,17 @@ static bool areCompatMatrixTypes(const ConstantMatrixType *LHS,
          LHS->getNumRows() == RHS->getNumRows() &&
          LHS->getNumColumns() == RHS->getNumColumns();
 }
+
+#ifdef SCALABLE_MATRIX
+static bool areCompatScalableMatrixTypes(const ScalableMatrixType *LHS,
+                                         const ScalableMatrixType *RHS) {
+  assert(LHS->isCanonicalUnqualified() && RHS->isCanonicalUnqualified());
+  return LHS->getElementType() == RHS->getElementType() &&
+         LHS->getNumRows() == RHS->getNumRows() &&
+         LHS->getNumColumns() == RHS->getNumColumns() &&
+         LHS->getScalable() == RHS->getScalable();
+}
+#endif
 
 bool ASTContext::areCompatibleVectorTypes(QualType FirstVec,
                                           QualType SecondVec) {
@@ -10814,6 +11017,13 @@ QualType ASTContext::mergeTypes(QualType LHS, QualType RHS, bool OfBlockPointer,
                              RHSCan->castAs<ConstantMatrixType>()))
       return LHS;
     return {};
+#ifdef SCALABLE_MATRIX
+  case Type::ScalableMatrix:
+    if (areCompatScalableMatrixTypes(LHSCan->castAs<ScalableMatrixType>(),
+                                     RHSCan->castAs<ScalableMatrixType>()))
+      return LHS;
+    return {};
+#endif
   case Type::ObjCObject: {
     // Check if the types are assignment compatible.
     // FIXME: This should be type compatibility, e.g. whether
@@ -11278,6 +11488,18 @@ static QualType DecodeTypeFromStr(const char *&Str, const ASTContext &Context,
            "Bad modifiers used with 'y'!");
     Type = Context.BFloat16Ty;
     break;
+#ifdef FP8_DATATYPES
+  case 'B':
+    assert(HowLong == 0 && !Signed && !Unsigned &&
+           "Bad modifiers used with 'v'!");
+    Type = Context.BF8Ty;
+    break;
+  case 'g':
+    assert(HowLong == 0 && !Signed && !Unsigned &&
+           "Bad modifiers used with 'v'!");
+    Type = Context.HF8Ty;
+    break;
+#endif
   case 'v':
     assert(HowLong == 0 && !Signed && !Unsigned &&
            "Bad modifiers used with 'v'!");
@@ -11386,6 +11608,62 @@ static QualType DecodeTypeFromStr(const char *&Str, const ASTContext &Context,
     Type = Context.getScalableVectorType(ElementType, NumElements);
     break;
   }
+#ifdef SCALABLE_MATRIX
+  case 'm': {
+    assert(Str[0] != 0 && "A matrix data type needs to have dimensions");
+    if (Str[0] == 'x') {
+      // It is scalable matrix if it has the form mxMxnxNxE
+      constexpr bool Scalable = true;
+
+      Str++;
+
+      char *End;
+      unsigned NumElements = strtoul(Str, &End, 10);
+      assert(End != Str && "Missing first matrix dimension");
+      Str = End;
+
+      assert(*Str == 'x' && "Wrong matrix format");
+      Str++;
+
+      assert(*Str == 'n' && "Wrong matrix format");
+      Str++;
+
+      assert(*Str == 'x' && "Wrong matrix format");
+      Str++;
+
+      unsigned NumElements2 = strtoul(Str, &End, 10);
+      assert(End != Str && "Missing second matrix dimension");
+      Str = End;
+
+      QualType ElementType = DecodeTypeFromStr(Str, Context, Error,
+                                                RequiresICE, false);
+      assert(!RequiresICE && "Can't require vector ICE");
+
+      Type = Context.getScalableMatrixType(ElementType, NumElements, NumElements2, Scalable);
+    } else {
+      // It is a fixed size matrix if it has the form mMxNxE
+      constexpr bool Scalable = false;
+
+      char *End;
+      unsigned NumElements = strtoul(Str, &End, 10);
+      assert(End != Str && "Missing first matrix dimension");
+
+      assert(*Str == 'x');
+      Str++;
+
+      unsigned NumElements2 = strtoul(Str, &End, 10);
+      assert(End != Str && "Missing second matrix dimension");
+      Str = End;
+
+      QualType ElementType = DecodeTypeFromStr(Str, Context, Error,
+                                              RequiresICE, false);
+      assert(!RequiresICE && "Can't require vector ICE");
+
+      Type = Context.getScalableMatrixType(ElementType, NumElements, NumElements2, Scalable);
+    }
+    break;
+  }
+#endif
   case 'Q': {
     switch (*Str++) {
     case 'a': {
@@ -12850,6 +13128,17 @@ static QualType getCommonNonSugarTypeNode(ASTContext &Ctx, const Type *X,
         getCommonElementType(Ctx, MX, MY), MX->getRowExpr(),
         MX->getColumnExpr(), getCommonAttrLoc(MX, MY));
   }
+#ifdef SCALABLE_MATRIX
+  case Type::ScalableMatrix: {
+    const auto *MX = cast<ScalableMatrixType>(X),
+               *MY = cast<ScalableMatrixType>(Y);
+    assert(MX->getNumRows() == MY->getNumRows());
+    assert(MX->getNumColumns() == MY->getNumColumns());
+    assert(MX->getScalable() == MY->getScalable());
+    return Ctx.getScalableMatrixType(getCommonElementType(Ctx, MX, MY),
+                                     MX->getNumRows(), MX->getNumColumns(), MX->getScalable());
+  }
+#endif
   case Type::Vector: {
     const auto *VX = cast<VectorType>(X), *VY = cast<VectorType>(Y);
     assert(VX->getNumElements() == VY->getNumElements());
@@ -12984,6 +13273,9 @@ static QualType getCommonSugarTypeNode(ASTContext &Ctx, const Type *X,
     CANONICAL_TYPE(Complex)
     CANONICAL_TYPE(ConstantArray)
     CANONICAL_TYPE(ConstantMatrix)
+#ifdef SCALABLE_MATRIX
+    CANONICAL_TYPE(ScalableMatrix)
+#endif
     CANONICAL_TYPE(Enum)
     CANONICAL_TYPE(ExtVector)
     CANONICAL_TYPE(FunctionNoProto)

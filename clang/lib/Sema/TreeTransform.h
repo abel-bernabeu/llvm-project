@@ -971,6 +971,13 @@ public:
                                            Expr *ColumnExpr,
                                            SourceLocation AttributeLoc);
 
+#ifdef SCALABLE_MATRIX
+  /// Build a new scalable matrix type given the element type, dimensions and
+  /// whether it is scalable.
+  QualType RebuildScalableMatrixType(QualType ElementType, unsigned NumRows,
+                                     unsigned NumColumns, bool Scalable);
+#endif
+
   /// Build a new DependentAddressSpaceType or return the pointee
   /// type variable with the correct address space (retrieved from
   /// AddrSpaceExpr) applied to it. The former will be returned in cases
@@ -5700,6 +5707,35 @@ QualType TreeTransform<Derived>::TransformDependentSizedMatrixType(
   NewTL.setAttrColumnOperand(columns);
   return Result;
 }
+
+#ifdef SCALABLE_MATRIX
+template <typename Derived>
+QualType
+TreeTransform<Derived>::TransformScalableMatrixType(TypeLocBuilder &TLB,
+                                                    ScalableMatrixTypeLoc TL) {
+  const ScalableMatrixType *T = TL.getTypePtr();
+  QualType ElementType = getDerived().TransformType(T->getElementType());
+  if (ElementType.isNull())
+    return QualType();
+
+  QualType Result = TL.getType();
+  if (getDerived().AlwaysRebuild() || ElementType != T->getElementType()) {
+    Result = getDerived().RebuildScalableMatrixType(
+        ElementType, T->getNumRows(), T->getNumColumns(), T->getScalable());
+    if (Result.isNull())
+      return QualType();
+  }
+
+  ScalableMatrixTypeLoc NewTL = TLB.push<ScalableMatrixTypeLoc>(Result);
+  NewTL.setAttrNameLoc(TL.getAttrNameLoc());
+  NewTL.setAttrOperandParensRange(TL.getAttrOperandParensRange());
+  NewTL.setAttrRowOperand(TL.getAttrRowOperand());
+  NewTL.setAttrColumnOperand(TL.getAttrColumnOperand());
+  NewTL.setAttrScalableOperand(TL.getAttrScalableOperand());
+
+  return Result;
+}
+#endif
 
 template <typename Derived>
 QualType TreeTransform<Derived>::TransformDependentAddressSpaceType(
@@ -15107,6 +15143,15 @@ QualType TreeTransform<Derived>::RebuildDependentSizedMatrixType(
   return SemaRef.BuildMatrixType(ElementType, RowExpr, ColumnExpr,
                                  AttributeLoc);
 }
+
+#ifdef SCALABLE_MATRIX
+template <typename Derived>
+QualType TreeTransform<Derived>::RebuildScalableMatrixType(
+    QualType ElementType, unsigned NumRows, unsigned NumColumns, bool Scalable) {
+  return SemaRef.Context.getScalableMatrixType(ElementType, NumRows,
+                                               NumColumns, Scalable);
+}
+#endif
 
 template<typename Derived>
 QualType TreeTransform<Derived>::RebuildFunctionProtoType(

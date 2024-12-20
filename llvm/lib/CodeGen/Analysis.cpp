@@ -93,7 +93,7 @@ void llvm::ComputeValueVTs(const TargetLowering &TLI, const DataLayout &DL,
          EI != EE; ++EI) {
       // Don't compute the element offset if we didn't get a StructLayout above.
       TypeSize EltOffset = SL ? SL->getElementOffset(EI - EB)
-                              : TypeSize::get(0, StartingOffset.isScalable());
+                              : TypeSize::get(0, Ty->getScaleID());
       ComputeValueVTs(TLI, DL, *EI, ValueVTs, MemVTs, Offsets,
                       StartingOffset + EltOffset);
     }
@@ -131,7 +131,7 @@ void llvm::ComputeValueVTs(const TargetLowering &TLI, const DataLayout &DL,
                            Type *Ty, SmallVectorImpl<EVT> &ValueVTs,
                            SmallVectorImpl<TypeSize> *Offsets,
                            uint64_t StartingOffset) {
-  TypeSize Offset = TypeSize::get(StartingOffset, Ty->isScalableTy());
+  TypeSize Offset = TypeSize::get(StartingOffset, Ty->getScaleID());
   return ComputeValueVTs(TLI, DL, Ty, ValueVTs, Offsets, Offset);
 }
 
@@ -139,7 +139,7 @@ void llvm::ComputeValueVTs(const TargetLowering &TLI, const DataLayout &DL,
                            Type *Ty, SmallVectorImpl<EVT> &ValueVTs,
                            SmallVectorImpl<uint64_t> *FixedOffsets,
                            uint64_t StartingOffset) {
-  TypeSize Offset = TypeSize::get(StartingOffset, Ty->isScalableTy());
+  TypeSize Offset = TypeSize::get(StartingOffset, Ty->getScaleID());
   if (FixedOffsets) {
     SmallVector<TypeSize, 4> Offsets;
     ComputeValueVTs(TLI, DL, Ty, ValueVTs, &Offsets, Offset);
@@ -155,7 +155,7 @@ void llvm::ComputeValueVTs(const TargetLowering &TLI, const DataLayout &DL,
                            SmallVectorImpl<EVT> *MemVTs,
                            SmallVectorImpl<TypeSize> *Offsets,
                            uint64_t StartingOffset) {
-  TypeSize Offset = TypeSize::get(StartingOffset, Ty->isScalableTy());
+  TypeSize Offset = TypeSize::get(StartingOffset, Ty->getScaleID());
   return ComputeValueVTs(TLI, DL, Ty, ValueVTs, MemVTs, Offsets, Offset);
 }
 
@@ -164,7 +164,7 @@ void llvm::ComputeValueVTs(const TargetLowering &TLI, const DataLayout &DL,
                            SmallVectorImpl<EVT> *MemVTs,
                            SmallVectorImpl<uint64_t> *FixedOffsets,
                            uint64_t StartingOffset) {
-  TypeSize Offset = TypeSize::get(StartingOffset, Ty->isScalableTy());
+  TypeSize Offset = TypeSize::get(StartingOffset, Ty->getScaleID());
   if (FixedOffsets) {
     SmallVector<TypeSize, 4> Offsets;
     ComputeValueVTs(TLI, DL, Ty, ValueVTs, MemVTs, &Offsets, Offset);

@@ -59,6 +59,10 @@ TargetInfo::TargetInfo(const llvm::Triple &T) : Triple(T) {
   VLASupported = true;
   NoAsmVariants = false;
   HasLegalHalfType = false;
+#ifdef FP8_DATATYPES
+  HasBF8Type = false;
+  HasHF8Type = false;
+#endif
   HalfArgsAndReturns = false;
   HasFloat128 = false;
   HasIbm128 = false;
@@ -109,6 +113,12 @@ TargetInfo::TargetInfo(const llvm::Triple &T) : Triple(T) {
     NewAlign = 0; // Infer from basic type alignment.
   HalfWidth = 16;
   HalfAlign = 16;
+#ifdef FP8_DATATYPES
+  BF8Width = 8;
+  BF8Align = 8;
+  HF8Width = 8;
+  HF8Align = 8;
+#endif
   FloatWidth = 32;
   FloatAlign = 32;
   DoubleWidth = 64;
@@ -156,6 +166,9 @@ TargetInfo::TargetInfo(const llvm::Triple &T) : Triple(T) {
   IsRenderScriptTarget = false;
   HasAArch64SVETypes = false;
   HasRISCVVTypes = false;
+#ifdef SCALABLE_MATRIX
+  HasScalableMatrixTypes = false;
+#endif
   AllowAMDGPUUnsafeFPAtomics = false;
   ARMCDECoprocMask = 0;
 

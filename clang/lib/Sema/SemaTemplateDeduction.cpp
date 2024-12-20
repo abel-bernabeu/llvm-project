@@ -2086,7 +2086,30 @@ static Sema::TemplateDeductionResult DeduceTemplateArgumentsByTypeMatch(
           S, TemplateParams, MP->getElementType(), MA->getElementType(), Info,
           Deduced, TDF);
     }
+#ifdef SCALABLE_MATRIX
+    //     (clang extension)
+    //
+    //     T __attribute__((scalable_matrix_type(<integral constant>,
+    //                                           <integral constant>,
+    //                                           <integral constant>)))
+    case Type::ScalableMatrix: {
+      const auto *MP = P->castAs<ScalableMatrixType>(),
+                 *MA = A->getAs<ScalableMatrixType>();
+      if (!MA)
+        return Sema::TDK_NonDeducedMismatch;
 
+      // Check that the dimensions are the same
+      if (MP->getNumRows() != MA->getNumRows() ||
+          MP->getNumColumns() != MA->getNumColumns() ||
+          MP->getScalable() != MA->getScalable()) {
+        return Sema::TDK_NonDeducedMismatch;
+      }
+      // Perform deduction on element types.
+      return DeduceTemplateArgumentsByTypeMatch(
+          S, TemplateParams, MP->getElementType(), MA->getElementType(), Info,
+          Deduced, TDF);
+    }
+#endif
     case Type::DependentSizedMatrix: {
       const auto *MP = P->castAs<DependentSizedMatrixType>();
       const auto *MA = A->getAs<MatrixType>();
@@ -6242,6 +6265,14 @@ MarkUsedTemplateParameters(ASTContext &Ctx, QualType T,
                                cast<VectorType>(T)->getElementType(),
                                OnlyDeduced, Depth, Used);
     break;
+
+#ifdef SCALABLE_MATRIX
+  case Type::ScalableMatrix:
+    MarkUsedTemplateParameters(Ctx,
+                               cast<ScalableMatrixType>(T)->getElementType(),
+                               OnlyDeduced, Depth, Used);
+    break;
+#endif
 
   case Type::DependentVector: {
     const auto *VecType = cast<DependentVectorType>(T);

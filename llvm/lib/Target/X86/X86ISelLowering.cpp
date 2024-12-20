@@ -19707,7 +19707,7 @@ SDValue X86TargetLowering::LowerUINT_TO_FP(SDValue Op,
     return SDValue();
 
   // Make a 64-bit buffer, and use it to build an FILD.
-  SDValue StackSlot = DAG.CreateStackTemporary(MVT::i64, 8);
+  SDValue StackSlot = DAG.CreateStackTemporary(MVT::i64, Align(8));
   int SSFI = cast<FrameIndexSDNode>(StackSlot)->getIndex();
   Align SlotAlign(8);
   MachinePointerInfo MPI =
@@ -28727,7 +28727,7 @@ SDValue X86TargetLowering::LowerWin64_i128OP(SDValue Op, SelectionDAG &DAG) cons
     EVT ArgVT = Op->getOperand(i).getValueType();
     assert(ArgVT.isInteger() && ArgVT.getSizeInBits() == 128 &&
            "Unexpected argument type for lowering");
-    SDValue StackPtr = DAG.CreateStackTemporary(ArgVT, 16);
+    SDValue StackPtr = DAG.CreateStackTemporary(ArgVT, Align(16));
     int SPFI = cast<FrameIndexSDNode>(StackPtr.getNode())->getIndex();
     MachinePointerInfo MPI =
         MachinePointerInfo::getFixedStack(DAG.getMachineFunction(), SPFI);
@@ -28818,7 +28818,7 @@ SDValue X86TargetLowering::LowerWin64_INT128_TO_FP(SDValue Op,
   SDValue Chain = IsStrict ? Op.getOperand(0) : DAG.getEntryNode();
 
   // Pass the i128 argument as an indirect argument on the stack.
-  SDValue StackPtr = DAG.CreateStackTemporary(ArgVT, 16);
+  SDValue StackPtr = DAG.CreateStackTemporary(ArgVT, Align(16));
   int SPFI = cast<FrameIndexSDNode>(StackPtr.getNode())->getIndex();
   MachinePointerInfo MPI =
       MachinePointerInfo::getFixedStack(DAG.getMachineFunction(), SPFI);

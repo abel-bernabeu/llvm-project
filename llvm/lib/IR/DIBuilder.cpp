@@ -596,6 +596,17 @@ DICompositeType *DIBuilder::createVectorType(uint64_t Size,
   return R;
 }
 
+DICompositeType *DIBuilder::createScalableMatrixType(uint64_t Size, uint64_t Size2,
+                                                     uint32_t AlignInBits, DIType *Ty,
+                                                     DINodeArray Subscripts) {
+  // SW-21251: Implement DIBuilder::createScalableMatrixType
+  auto *R = DICompositeType::get(VMContext, dwarf::DW_TAG_array_type, "",
+                                 nullptr, 0, nullptr, Ty, Size, AlignInBits, 0,
+                                 DINode::FlagMatrix, Subscripts, 0, nullptr);
+  trackIfUnresolved(R);
+  return R;
+}
+
 DISubprogram *DIBuilder::createArtificialSubprogram(DISubprogram *SP) {
   auto NewSP = SP->cloneWithFlags(SP->getFlags() | DINode::FlagArtificial);
   return MDNode::replaceWithDistinct(std::move(NewSP));

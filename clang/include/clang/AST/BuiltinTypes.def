@@ -197,6 +197,14 @@ UNSIGNED_TYPE(SatULongFract, SatUnsignedLongFractTy)
 
 //===- Floating point types -----------------------------------------------===//
 
+#ifdef FP8_DATATYPES
+// '__hf8'
+FLOATING_TYPE(HF8, HF8Ty)
+
+// '__bf8'
+FLOATING_TYPE(BF8, BF8Ty)
+#endif
+
 // 'half' in OpenCL, '__fp16' in ARM NEON.
 FLOATING_TYPE(Half, HalfTy)
 

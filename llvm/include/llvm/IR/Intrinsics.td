@@ -183,6 +183,7 @@ def ArgKind {
   int AnyFloat   = 2;
   int AnyVector  = 3;
   int AnyPointer = 4;
+  int AnyMatrix  = 5;
 
   int MatchType  = 7;
 }
@@ -260,6 +261,11 @@ class IIT_Vec<int nelem, int num> : IIT_Base<num> {
     !and(vti.isVector, !eq(vti.nElem, nelem)));
 }
 
+class IIT_Mat<int nelem1, int nelem2, int num> : IIT_Base<num> {
+  let VTs = !filter(vti, ValueTypes,
+    !and(vti.isMatrix, !and(!eq(vti.nElem, nelem1), !eq(vti.nElem2, nelem2))));
+}
+
 defset list<IIT_Base> IIT_all = {
 def IIT_Done : IIT_Base<    0>;
 def IIT_I1   : IIT_Int<1,   1>;
@@ -319,6 +325,16 @@ def IIT_FUNCREF : IIT_VT<funcref, 55>;
 def IIT_I2 : IIT_Int<2, 57>;
 def IIT_I4 : IIT_Int<4, 58>;
 def IIT_AARCH64_SVCOUNT : IIT_VT<aarch64svcount, 59>;
+def IIT_M1X1 : IIT_Mat<1, 1, 60>;
+def IIT_M1X2 : IIT_Mat<1, 2, 61>;
+def IIT_M1X4 : IIT_Mat<1, 4, 62>;
+def IIT_M1X8 : IIT_Mat<1, 8, 63>;
+def IIT_M1X16 : IIT_Mat<1, 16, 64>;
+def IIT_M1X32 : IIT_Mat<1, 32, 65>;
+def IIT_M1X64 : IIT_Mat<1, 64, 66>;
+def IIT_SCALABLE_MAT : IIT_Base<67>;
+def IIT_BF8 : IIT_VT<bf8, 68>;
+def IIT_HF8 : IIT_VT<hf8, 69>;
 }
 
 defvar IIT_all_FixedTypes = !filter(iit, IIT_all,
@@ -326,6 +342,9 @@ defvar IIT_all_FixedTypes = !filter(iit, IIT_all,
 
 defvar IIT_all_VectorTypes = !filter(iit, IIT_all,
   !isa<IIT_Vec>(iit));
+
+defvar IIT_all_MatrixTypes = !filter(iit, IIT_all,
+  !isa<IIT_Mat>(iit));
 
 defvar IIT_RetNumbers = [
   [IIT_Done.Number],
@@ -353,7 +372,7 @@ class LLVMType<ValueType vt> {
 
   list<IIT_Base> IITs = !filter(iit, IIT_all_FixedTypes,
     !not(!empty(!filter(iit_vt, iit.VTs,
-      !eq(iit_vt, !if(vt.isVector, vt.ElementType, vt))))));
+      !eq(iit_vt, !if(!or(vt.isVector, vt.isMatrix), vt.ElementType, vt))))));
   assert !le(!size(IITs), 1), "Duplicate type";
 
   list<IIT_Base> IIT_Vecs = !if(vt.isVector,
@@ -364,8 +383,18 @@ class LLVMType<ValueType vt> {
     []);
   assert !le(!size(IIT_Vecs), 1), "Duplicate type";
 
+  list<IIT_Base> IIT_Mats = !if(vt.isMatrix,
+    !filter(iit, IIT_all_MatrixTypes,
+      !not(!empty(!filter(iit_vt, iit.VTs, !and(
+        !eq(iit_vt.ElementType, vt.ElementType),
+        !and(!eq(iit_vt.nElem, vt.nElem), !eq(iit_vt.nElem2, vt.nElem2))))))),
+    []);
+  assert !le(!size(IIT_Mats), 1), "Duplicate type";
+
   list<int> Sig = !listconcat(
-    !if(vt.isScalable, [IIT_SCALABLE_VEC.Number], []),
+    !if(!and(vt.isScalable, vt.isMatrix), [IIT_SCALABLE_MAT.Number], []),
+    !foreach(iit, IIT_Mats, iit.Number),
+    !if(!and(vt.isScalable, vt.isVector), [IIT_SCALABLE_VEC.Number], []),
     !foreach(iit, IIT_Vecs, iit.Number),
     !foreach(iit, IITs,     iit.Number));
 }
@@ -376,6 +405,7 @@ class LLVMAnyType<ValueType vt> : LLVMType<vt> {
     !eq(vt, iAny)    : ArgKind.AnyInteger,
     !eq(vt, fAny)    : ArgKind.AnyFloat,
     !eq(vt, vAny)    : ArgKind.AnyVector,
+    !eq(vt, mAny)    : ArgKind.AnyMatrix,
     !eq(vt, iPTRAny) : ArgKind.AnyPointer,
   );
   let Sig = [
@@ -474,6 +504,7 @@ def llvm_any_ty        : LLVMAnyType<Any>;
 def llvm_anyint_ty     : LLVMAnyType<iAny>;
 def llvm_anyfloat_ty   : LLVMAnyType<fAny>;
 def llvm_anyvector_ty  : LLVMAnyType<vAny>;
+def llvm_anymatrix_ty  : LLVMAnyType<mAny>;
 
 def llvm_i1_ty         : LLVMType<i1>;
 def llvm_i8_ty         : LLVMType<i8>;

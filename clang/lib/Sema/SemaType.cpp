@@ -1541,6 +1541,22 @@ static QualType ConvertDeclSpecToType(TypeProcessingState &state) {
       S.Diag(DS.getTypeSpecTypeLoc(), diag::err_type_unsupported) << "__bf16";
     Result = Context.BFloat16Ty;
     break;
+#ifdef FP8_DATATYPES
+  case DeclSpec::TST_BF8:
+    if (!S.Context.getTargetInfo().hasBF8Type() &&
+        !(S.getLangOpts().OpenMP && S.getLangOpts().OpenMPIsTargetDevice) &&
+        !S.getLangOpts().SYCLIsDevice)
+      S.Diag(DS.getTypeSpecTypeLoc(), diag::err_type_unsupported) << "__bf8";
+    Result = Context.BF8Ty;
+    break;
+  case DeclSpec::TST_HF8:
+    if (!S.Context.getTargetInfo().hasHF8Type() &&
+        !(S.getLangOpts().OpenMP && S.getLangOpts().OpenMPIsTargetDevice) &&
+        !S.getLangOpts().SYCLIsDevice)
+      S.Diag(DS.getTypeSpecTypeLoc(), diag::err_type_unsupported) << "__hf8";
+    Result = Context.HF8Ty;
+    break;
+#endif
   case DeclSpec::TST_float:   Result = Context.FloatTy; break;
   case DeclSpec::TST_double:
     if (DS.getTypeSpecWidth() == TypeSpecifierWidth::Long)
@@ -2954,6 +2970,87 @@ QualType Sema::BuildMatrixType(QualType ElementTy, Expr *NumRows, Expr *NumCols,
   }
   return Context.getConstantMatrixType(ElementTy, MatrixRows, MatrixColumns);
 }
+
+#ifdef SCALABLE_MATRIX
+QualType Sema::BuildScalableMatrixType(QualType ElementTy, Expr *NumRows, Expr *NumCols, Expr *Scalable,
+                               SourceLocation AttrLoc) {
+  assert(Context.getTargetInfo().hasScalableMatrixTypes() &&
+         "Should never build a scalable matrix type when the target does not support any");
+  // Check element type, if it is not dependent.
+  if (!ElementTy->isDependentType() &&
+      !ScalableMatrixType::isValidElementType(ElementTy)) {
+    Diag(AttrLoc, diag::err_attribute_invalid_matrix_type) << ElementTy;
+    return QualType();
+  }
+  if (NumRows->isTypeDependent() || NumCols->isTypeDependent() ||
+      NumRows->isValueDependent() || NumCols->isValueDependent())
+    return QualType();
+  std::optional<llvm::APSInt> ValueRows =
+      NumRows->getIntegerConstantExpr(Context);
+  std::optional<llvm::APSInt> ValueColumns =
+      NumCols->getIntegerConstantExpr(Context);
+  std::optional<llvm::APSInt> ValueScalable =
+      Scalable->getIntegerConstantExpr(Context);
+  auto const RowRange = NumRows->getSourceRange();
+  auto const ColRange = NumCols->getSourceRange();
+  auto const ScalableRange = Scalable->getSourceRange();
+  // Both are row and column expressions are invalid.
+  if (!ValueRows && !ValueColumns && !ValueScalable) {
+    Diag(AttrLoc, diag::err_attribute_argument_type)
+        << "scalable_matrix_type" << AANT_ArgumentIntegerConstant << RowRange
+        << ColRange << ScalableRange;
+    return QualType();
+  }
+  // Only the row expression is invalid.
+  if (!ValueRows) {
+    Diag(AttrLoc, diag::err_attribute_argument_type)
+        << "scalable_matrix_type" << AANT_ArgumentIntegerConstant << RowRange;
+    return QualType();
+  }
+  // Only the column expression is invalid.
+  if (!ValueColumns) {
+    Diag(AttrLoc, diag::err_attribute_argument_type)
+        << "scalable_matrix_type" << AANT_ArgumentIntegerConstant << ColRange;
+    return QualType();
+  }
+  // Only the scalable expression is invalid.
+  if (!ValueScalable) {
+    Diag(AttrLoc, diag::err_attribute_argument_type)
+        << "scalable_matrix_type" << AANT_ArgumentIntegerConstant << ScalableRange;
+    return QualType();
+  }
+  // Check the matrix dimensions.
+  unsigned MatrixRows = static_cast<unsigned>(ValueRows->getZExtValue());
+  unsigned MatrixColumns = static_cast<unsigned>(ValueColumns->getZExtValue());
+  if (MatrixRows == 0 && MatrixColumns == 0) {
+    Diag(AttrLoc, diag::err_attribute_zero_size)
+        << "matrix" << RowRange << ColRange;
+    return QualType();
+  }
+  if (MatrixRows == 0) {
+    Diag(AttrLoc, diag::err_attribute_zero_size) << "matrix" << RowRange;
+    return QualType();
+  }
+  if (MatrixColumns == 0) {
+    Diag(AttrLoc, diag::err_attribute_zero_size) << "matrix" << ColRange;
+    return QualType();
+  }
+  if (!ConstantMatrixType::isDimensionValid(MatrixRows)) {
+    Diag(AttrLoc, diag::err_attribute_size_too_large)
+        << RowRange << "matrix row";
+    return QualType();
+  }
+  if (!ConstantMatrixType::isDimensionValid(MatrixColumns)) {
+    Diag(AttrLoc, diag::err_attribute_size_too_large)
+        << ColRange << "matrix column";
+    return QualType();
+  }
+
+  unsigned MatrixScalable = static_cast<bool>(ValueScalable->getZExtValue());
+
+  return Context.getScalableMatrixType(ElementTy, MatrixRows, MatrixColumns, MatrixScalable);
+}
+#endif
 
 bool Sema::CheckFunctionReturnType(QualType T, SourceLocation Loc) {
   if (T->isArrayType() || T->isFunctionType()) {
@@ -6218,6 +6315,24 @@ static void fillMatrixTypeLoc(MatrixTypeLoc MTL,
   llvm_unreachable("no matrix_type attribute found at the expected location!");
 }
 
+#ifdef SCALABLE_MATRIX
+static void fillScalableMatrixTypeLoc(ScalableMatrixTypeLoc MTL,
+                              const ParsedAttributesView &Attrs) {
+  for (const ParsedAttr &AL : Attrs) {
+    if (AL.getKind() == ParsedAttr::AT_ScalableMatrixType) {
+      MTL.setAttrNameLoc(AL.getLoc());
+      MTL.setAttrRowOperand(AL.getArgAsExpr(0));
+      MTL.setAttrColumnOperand(AL.getArgAsExpr(1));
+      MTL.setAttrScalableOperand(AL.getArgAsExpr(2));
+      MTL.setAttrOperandParensRange(SourceRange());
+      return;
+    }
+  }
+
+  llvm_unreachable("no scalable_matrix_type attribute found at the expected location!");
+}
+#endif
+
 namespace {
   class TypeSpecLocFiller : public TypeLocVisitor<TypeSpecLocFiller> {
     Sema &SemaRef;
@@ -6590,7 +6705,11 @@ namespace {
     void VisitMatrixTypeLoc(MatrixTypeLoc TL) {
       fillMatrixTypeLoc(TL, Chunk.getAttrs());
     }
-
+#ifdef SCALABLE_MATRIX
+    void VisitScalableMatrixTypeLoc(ScalableMatrixTypeLoc TL) {
+      fillScalableMatrixTypeLoc(TL, Chunk.getAttrs());
+    }
+#endif
     void VisitTypeLoc(TypeLoc TL) {
       llvm_unreachable("unsupported TypeLoc kind in declarator!");
     }
@@ -8737,6 +8856,30 @@ static void HandleMatrixTypeAttr(QualType &CurType, const ParsedAttr &Attr,
     CurType = T;
 }
 
+#ifdef SCALABLE_MATRIX
+/// HandleMatrixTypeAttr - "scalable_matrix_type" attribute, like ext_vector_type
+static void HandleScalableMatrixTypeAttr(QualType &CurType, const ParsedAttr &Attr,
+                                 Sema &S) {
+  if (!S.Context.getTargetInfo().hasScalableMatrixTypes()) {
+    S.Diag(Attr.getLoc(), diag::err_builtin_scalable_matrix_type_not_supported);
+    return;
+  }
+
+  if (Attr.getNumArgs() != 3) {
+    S.Diag(Attr.getLoc(), diag::err_attribute_wrong_number_arguments)
+        << Attr << 3;
+    return;
+  }
+
+  Expr *RowsExpr = Attr.getArgAsExpr(0);
+  Expr *ColsExpr = Attr.getArgAsExpr(1);
+  Expr *ScalableExpr = Attr.getArgAsExpr(2);
+  QualType T = S.BuildScalableMatrixType(CurType, RowsExpr, ColsExpr, ScalableExpr, Attr.getLoc());
+  if (!T.isNull())
+    CurType = T;
+}
+#endif
+
 static void HandleAnnotateTypeAttr(TypeProcessingState &State,
                                    QualType &CurType, const ParsedAttr &PA) {
   Sema &S = State.getSema();
@@ -8955,6 +9098,13 @@ static void processTypeAttrs(TypeProcessingState &state, QualType &type,
       HandleMatrixTypeAttr(type, attr, state.getSema());
       attr.setUsedAsTypeAttr();
       break;
+#ifdef SCALABLE_MATRIX
+
+    case ParsedAttr::AT_ScalableMatrixType:
+      HandleScalableMatrixTypeAttr(type, attr, state.getSema());
+      attr.setUsedAsTypeAttr();
+      break;
+#endif
 
     case ParsedAttr::AT_WebAssemblyFuncref: {
       if (!HandleWebAssemblyFuncrefAttr(state, type, attr))

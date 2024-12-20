@@ -6897,6 +6897,16 @@ void TypeLocReader::VisitDependentSizedMatrixTypeLoc(
   TL.setAttrColumnOperand(Reader.readExpr());
 }
 
+#ifdef SCALABLE_MATRIX
+void TypeLocReader::VisitScalableMatrixTypeLoc(ScalableMatrixTypeLoc TL) {
+  TL.setAttrNameLoc(readSourceLocation());
+  TL.setAttrOperandParensRange(readSourceRange());
+  TL.setAttrRowOperand(Reader.readExpr());
+  TL.setAttrColumnOperand(Reader.readExpr());
+  TL.setAttrScalableOperand(Reader.readExpr());
+}
+#endif
+
 void TypeLocReader::VisitFunctionTypeLoc(FunctionTypeLoc TL) {
   TL.setLocalRangeBegin(readSourceLocation());
   TL.setLParenLoc(readSourceLocation());
@@ -7189,6 +7199,14 @@ QualType ASTReader::GetType(TypeID ID) {
     case PREDEF_TYPE_INT128_ID:
       T = Context.Int128Ty;
       break;
+#ifdef FP8_DATATYPES
+    case PREDEF_TYPE_BFLOAT8_ID:
+      T = Context.BF8Ty;
+      break;
+    case PREDEF_TYPE_HF8_ID:
+      T = Context.HF8Ty;
+      break;
+#endif
     case PREDEF_TYPE_BFLOAT16_ID:
       T = Context.BFloat16Ty;
       break;
@@ -7385,6 +7403,13 @@ QualType ASTReader::GetType(TypeID ID) {
       T = Context.SingletonId; \
       break;
 #include "clang/Basic/RISCVVTypes.def"
+#ifdef SCALABLE_MATRIX
+#define SMAT_BASE(Name, Id, SingletonId) \
+    case PREDEF_TYPE_##Id##_ID: \
+      T = Context.SingletonId; \
+      break;
+#include "clang/Basic/ScalableMatrixTypes.def"
+#endif
 #define WASM_TYPE(Name, Id, SingletonId)                                       \
   case PREDEF_TYPE_##Id##_ID:                                                  \
     T = Context.SingletonId;                                                   \

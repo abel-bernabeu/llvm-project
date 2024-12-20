@@ -2810,6 +2810,11 @@ bool LLParser::parseType(Type *&Result, const Twine &Msg, bool AllowVoid) {
       if (parseAnonStructType(Result, true) ||
           parseToken(lltok::greater, "expected '>' at end of packed struct"))
         return true;
+#ifdef SCALABLE_MATRIX
+    } else if (Lex.getKind() == lltok::kw_mn_scale || Lex.getKind() == lltok::kw_one_scale) {
+      if (parseMatrixType(Result))
+        return true;
+#endif
     } else if (parseArrayVectorType(Result, true))
       return true;
     break;
@@ -3248,7 +3253,7 @@ bool LLParser::parseArrayVectorType(Type *&Result, bool IsVector) {
 
   if (Lex.getKind() != lltok::APSInt || Lex.getAPSIntVal().isSigned() ||
       Lex.getAPSIntVal().getBitWidth() > 64)
-    return tokError("expected number in address space");
+    return tokError("expected positive signed 64 bits number as size");
 
   LocTy SizeLoc = Lex.getLoc();
   uint64_t Size = Lex.getAPSIntVal().getZExtValue();
@@ -3281,6 +3286,71 @@ bool LLParser::parseArrayVectorType(Type *&Result, bool IsVector) {
   }
   return false;
 }
+
+#ifdef SCALABLE_MATRIX
+/// parseMatrixType - parse a matrix type, assuming the first
+/// token has already been consumed.
+///   Type
+///     ::= '<' 'mn_scale' 'x' APSINTVAL 'x' APSINTVAL Types '>'
+///     ::= '<' 'one_scale' 'x' APSINTVAL 'x' APSINTVAL Types '>'
+bool LLParser::parseMatrixType(Type *&Result) {
+  bool Scalable = false;
+  if (Lex.getKind() == lltok::kw_mn_scale) {
+    Lex.Lex(); // consume the 'mn_scale'
+    Scalable = true;
+  } else if (Lex.getKind() == lltok::kw_one_scale) {
+    Lex.Lex(); // consume the 'one_scale'
+  } else {
+    return false;
+  }
+
+  if (parseToken(lltok::kw_x, "expected 'x' after m"))
+    return true;
+
+  if (Lex.getKind() != lltok::APSInt || Lex.getAPSIntVal().isSigned() ||
+      Lex.getAPSIntVal().getBitWidth() > 64)
+    return tokError("expected positive signed 64 bits number as number of elements in first dimension");
+
+  LocTy NumEltsLoc = Lex.getLoc();
+  uint64_t NumElts = Lex.getAPSIntVal().getZExtValue();
+  Lex.Lex();
+
+  if (parseToken(lltok::kw_x, "expected 'x' after element count"))
+    return true;
+
+  if (Lex.getKind() != lltok::APSInt || Lex.getAPSIntVal().isSigned() ||
+      Lex.getAPSIntVal().getBitWidth() > 64)
+    return tokError("expected positive signed 64 bits number as number of elements in first dimension");
+
+  LocTy NumElts2Loc = Lex.getLoc();
+  uint64_t NumElts2 = Lex.getAPSIntVal().getZExtValue();
+  Lex.Lex();
+
+  LocTy TypeLoc = Lex.getLoc();
+  Type *EltTy = nullptr;
+  if (parseType(EltTy))
+    return true;
+
+  if (parseToken(lltok::greater,
+                 "expected closing angle bracker"))
+    return true;
+
+  if (NumElts == 0)
+    return error(NumEltsLoc, "zero is illegal for first matrix dimension");
+  if ((unsigned)NumElts != NumElts)
+    return error(NumEltsLoc, "size too large for first matrix dimension");
+
+  if (NumElts2 == 0)
+    return error(NumEltsLoc, "zero is illegal for first second matrix dimension");
+  if ((unsigned)NumElts2 != NumElts2)
+    return error(NumElts2Loc, "size too large for second matrix dimension");
+
+  if (!ScalableMatrixType::isValidElementType(EltTy))
+    return error(TypeLoc, "invalid matrix element element type");
+  Result = ScalableMatrixType::get(EltTy, unsigned(NumElts), unsigned(NumElts2), Scalable);
+  return false;
+}
+#endif
 
 /// parseTargetExtType - handle target extension type syntax
 ///   TargetExtType
@@ -5854,6 +5924,15 @@ bool LLParser::convertValIDToValue(Type *Ty, ValID &ID, Value *&V,
       // Check for signaling before potentially converting and losing that info.
       bool IsSNAN = ID.APFloatVal.isSignaling();
       bool Ignored;
+#ifdef FP8_DATATYPES
+      if (Ty->isBF8Ty())
+        ID.APFloatVal.convert(APFloat::Float8E5M2(), APFloat::rmNearestTiesToEven,
+                              &Ignored);
+      else if (Ty->isHF8Ty())
+        ID.APFloatVal.convert(APFloat::Float8E4M3FN(), APFloat::rmNearestTiesToEven,
+                              &Ignored);
+      else
+#endif
       if (Ty->isHalfTy())
         ID.APFloatVal.convert(APFloat::IEEEhalf(), APFloat::rmNearestTiesToEven,
                               &Ignored);

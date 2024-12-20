@@ -646,6 +646,11 @@ KEYWORD(__bool                      , KEYALTIVEC|KEYZVECTOR)
 // ARM NEON extensions.
 ALIAS("__fp16", half                , KEYALL)
 KEYWORD(__bf16                      , KEYALL)
+#ifdef FP8_DATATYPES
+// 8-bits Floating point
+KEYWORD(__bf8                      , KEYALL)
+KEYWORD(__hf8                      , KEYALL)
+#endif
 
 // OpenCL Extension.
 KEYWORD(half                        , HALFSUPPORT)

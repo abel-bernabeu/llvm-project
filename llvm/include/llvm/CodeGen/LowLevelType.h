@@ -40,7 +40,10 @@ class LLT {
 public:
   /// Get a low-level scalar or aggregate "bag of bits".
   static constexpr LLT scalar(unsigned SizeInBits) {
-    return LLT{/*isPointer=*/false, /*isVector=*/false, /*isScalar=*/true,
+    return LLT{/*isPointer=*/false,
+               /*isMatrix=*/false,
+               /*isVector=*/false,
+               /*isScalar=*/true,
                ElementCount::getFixed(0), SizeInBits,
                /*AddressSpace=*/0};
   }
@@ -48,14 +51,20 @@ public:
   /// Get a low-level pointer in the given address space.
   static constexpr LLT pointer(unsigned AddressSpace, unsigned SizeInBits) {
     assert(SizeInBits > 0 && "invalid pointer size");
-    return LLT{/*isPointer=*/true, /*isVector=*/false, /*isScalar=*/false,
+    return LLT{/*isPointer=*/true,
+               /*isMatrix=*/false,
+               /*isVector=*/false,
+               /*isScalar=*/false,
                ElementCount::getFixed(0), SizeInBits, AddressSpace};
   }
 
   /// Get a low-level vector of some number of elements and element width.
   static constexpr LLT vector(ElementCount EC, unsigned ScalarSizeInBits) {
     assert(!EC.isScalar() && "invalid number of vector elements");
-    return LLT{/*isPointer=*/false, /*isVector=*/true, /*isScalar=*/false,
+    return LLT{/*isPointer=*/false,
+               /*isMatrix=*/false,
+               /*isVector=*/true,
+               /*isScalar=*/false,
                EC, ScalarSizeInBits, /*AddressSpace=*/0};
   }
 
@@ -63,12 +72,28 @@ public:
   static constexpr LLT vector(ElementCount EC, LLT ScalarTy) {
     assert(!EC.isScalar() && "invalid number of vector elements");
     assert(!ScalarTy.isVector() && "invalid vector element type");
+    assert(!ScalarTy.isMatrix() && "invalid matrix element type");
     return LLT{ScalarTy.isPointer(),
+               /*isMatrix=*/false,
                /*isVector=*/true,
                /*isScalar=*/false,
                EC,
                ScalarTy.getSizeInBits().getFixedValue(),
                ScalarTy.isPointer() ? ScalarTy.getAddressSpace() : 0};
+  }
+
+  /// Get a low-level matrix of some number of elements and element type.
+  static constexpr LLT matrix(unsigned NumElements, unsigned NumElements2, bool Scalable, LLT ScalarTy) {
+    assert(!ScalarTy.isVector() && "invalid vector element type");
+    assert(!ScalarTy.isMatrix() && "invalid matrix element type");
+    return LLT{ScalarTy.isPointer(),
+               /*isMatrix=*/true,
+               /*isVector=*/false,
+               /*isScalar=*/false,
+               ElementCount::getFixed(0),
+               ScalarTy.getSizeInBits().getFixedValue(),
+               ScalarTy.isPointer() ? ScalarTy.getAddressSpace() : 0,
+               NumElements, NumElements2, Scalable};
   }
 
   /// Get a 16-bit IEEE half value.
@@ -123,14 +148,14 @@ public:
     return scalarOrVector(EC, LLT::scalar(static_cast<unsigned>(ScalarSize)));
   }
 
-  explicit constexpr LLT(bool isPointer, bool isVector, bool isScalar,
+  explicit constexpr LLT(bool isPointer, bool isMatrix, bool isVector, bool isScalar,
                          ElementCount EC, uint64_t SizeInBits,
-                         unsigned AddressSpace)
+                         unsigned AddressSpace, unsigned NumElements = 0, unsigned NumElements2 = 0, bool Scalable = false)
       : LLT() {
-    init(isPointer, isVector, isScalar, EC, SizeInBits, AddressSpace);
+    init(isPointer, isMatrix, isVector, isScalar, EC, SizeInBits, AddressSpace, NumElements, NumElements2, Scalable);
   }
   explicit constexpr LLT()
-      : IsScalar(false), IsPointer(false), IsVector(false), RawData(0) {}
+      : IsScalar(false), IsPointer(false), IsVector(false), IsMatrix(false), RawData(0) {}
 
   explicit LLT(MVT VT);
 
@@ -139,14 +164,21 @@ public:
   constexpr bool isScalar() const { return IsScalar; }
 
   constexpr bool isPointer() const {
-    return isValid() && IsPointer && !IsVector;
+    return isValid() && IsPointer && !IsVector&& !IsMatrix;
   }
 
   constexpr bool isVector() const { return isValid() && IsVector; }
 
+  constexpr bool isMatrix() const { return isValid() && IsMatrix; }
+
   /// Returns the number of elements in a vector LLT. Must only be called on
   /// vector types.
   constexpr uint16_t getNumElements() const {
+    assert((isMatrix() || isVector()) && "It should be a matrix or vector");
+    if (isMatrix()) {
+      return IsPointer ? getFieldValue(PointerMatrixElementsFieldInfo)
+                       : getFieldValue(MatrixElementsFieldInfo);
+    }
     if (isScalable())
       llvm::reportInvalidSizeRequest(
           "Possible incorrect use of LLT::getNumElements() for "
@@ -155,10 +187,23 @@ public:
     return getElementCount().getKnownMinValue();
   }
 
+  /// Returns the number of elements in a vector LLT. Must only be called on
+  /// vector types.
+  constexpr uint16_t getNumElements2() const {
+    assert(isMatrix() && "It should be a matrix ");
+    return IsPointer ? getFieldValue(PointerMatrixElements2FieldInfo)
+                     : getFieldValue(MatrixElements2FieldInfo);
+  }
+
+
   /// Returns true if the LLT is a scalable vector. Must only be called on
   /// vector types.
   constexpr bool isScalable() const {
-    assert(isVector() && "Expected a vector type");
+    assert((isMatrix() || isVector()) && "It should be a matrix or vector");
+    if (isMatrix()) {
+      return IsPointer ? getFieldValue(PointerMatrixScalableFieldInfo)
+                       : getFieldValue(MatrixScalableFieldInfo);
+    }
     return IsPointer ? getFieldValue(PointerVectorScalableFieldInfo)
                      : getFieldValue(VectorScalableFieldInfo);
   }
@@ -183,6 +228,10 @@ public:
   constexpr TypeSize getSizeInBits() const {
     if (isPointer() || isScalar())
       return TypeSize::getFixed(getScalarSizeInBits());
+    if (isMatrix()) {
+      auto MinElementCount = getNumElements() *  getNumElements2();
+      return TypeSize(getScalarSizeInBits() * MinElementCount, isScalable()? TypeSize::ScaleID::MN : TypeSize::ScaleID::None);
+    }
     auto EC = getElementCount();
     return TypeSize(getScalarSizeInBits() * EC.getKnownMinValue(),
                     EC.isScalable());
@@ -192,7 +241,7 @@ public:
   /// needed to represent the size in bits. Must only be called on sized types.
   constexpr TypeSize getSizeInBytes() const {
     TypeSize BaseSize = getSizeInBits();
-    return {(BaseSize.getKnownMinValue() + 7) / 8, BaseSize.isScalable()};
+    return {(BaseSize.getKnownMinValue() + 7) / 8, BaseSize.getScale()};
   }
 
   constexpr LLT getScalarType() const {
@@ -257,6 +306,12 @@ public:
   constexpr unsigned getScalarSizeInBits() const {
     if (IsScalar)
       return getFieldValue(ScalarSizeFieldInfo);
+    if (IsMatrix) {
+      if (!IsPointer)
+        return getFieldValue(MatrixSizeFieldInfo);
+      else
+        return getFieldValue(PointerMatrixSizeFieldInfo);
+    }
     if (IsVector) {
       if (!IsPointer)
         return getFieldValue(VectorSizeFieldInfo);
@@ -270,15 +325,16 @@ public:
   constexpr unsigned getAddressSpace() const {
     assert(RawData != 0 && "Invalid Type");
     assert(IsPointer && "cannot get address space of non-pointer type");
-    if (!IsVector)
-      return getFieldValue(PointerAddressSpaceFieldInfo);
-    else
+    if (IsMatrix)
+      return getFieldValue(PointerMatrixAddressSpaceFieldInfo);
+    if (IsVector)
       return getFieldValue(PointerVectorAddressSpaceFieldInfo);
+    return getFieldValue(PointerAddressSpaceFieldInfo);
   }
 
   /// Returns the vector's element type. Only valid for vector types.
   constexpr LLT getElementType() const {
-    assert(isVector() && "cannot get element type of scalar/aggregate");
+    assert((isVector() or isMatrix()) && "cannot get element type of scalar/aggregate");
     if (IsPointer)
       return pointer(getAddressSpace(), getScalarSizeInBits());
     else
@@ -306,7 +362,8 @@ private:
   /// isScalar : 1
   /// isPointer : 1
   /// isVector  : 1
-  /// with 61 bits remaining for Kind-specific data, packed in bitfields
+  /// isMatrix : 1
+  /// with 60 bits remaining for Kind-specific data, packed in bitfields
   /// as described below. As there isn't a simple portable way to pack bits
   /// into bitfields, here the different fields in the packed structure is
   /// described in static const *Field variables. Each of these variables
@@ -328,7 +385,7 @@ private:
   static const constexpr BitFieldInfo PointerAddressSpaceFieldInfo{
       24, PointerSizeFieldInfo[0] + PointerSizeFieldInfo[1]};
   static_assert((PointerAddressSpaceFieldInfo[0] +
-                 PointerAddressSpaceFieldInfo[1]) <= 61,
+                 PointerAddressSpaceFieldInfo[1]) <= 60,
                 "Insufficient bits to encode all data");
   /// * Vector-of-non-pointer (isPointer == 0 && isVector == 1):
   ///   NumElements: 16;
@@ -339,7 +396,7 @@ private:
       32, VectorElementsFieldInfo[0] + VectorElementsFieldInfo[1]};
   static const constexpr BitFieldInfo VectorScalableFieldInfo{
       1, VectorSizeFieldInfo[0] + VectorSizeFieldInfo[1]};
-  static_assert((VectorSizeFieldInfo[0] + VectorSizeFieldInfo[1]) <= 61,
+  static_assert((VectorSizeFieldInfo[0] + VectorSizeFieldInfo[1]) <= 60,
                 "Insufficient bits to encode all data");
   /// * Vector-of-pointer (isPointer == 1 && isVector == 1):
   ///   NumElements: 16;
@@ -355,14 +412,50 @@ private:
   static const constexpr BitFieldInfo PointerVectorScalableFieldInfo{
       1, PointerVectorAddressSpaceFieldInfo[0] +
              PointerVectorAddressSpaceFieldInfo[1]};
-  static_assert((PointerVectorAddressSpaceFieldInfo[0] +
-                 PointerVectorAddressSpaceFieldInfo[1]) <= 61,
+  static_assert((PointerVectorScalableFieldInfo[0] +
+                 PointerVectorScalableFieldInfo[1]) <= 60,
+                "Insufficient bits to encode all data");
+  /// * Matrix-of-non-pointer (isPointer == 0 && isMatrix == 1):
+  ///   NumElements: 16;
+  ///   NumElements2: 16;
+  ///   SizeOfElement: 16;
+  ///   Scalable: 1;
+  static const constexpr BitFieldInfo MatrixElementsFieldInfo{16, 0};
+  static const constexpr BitFieldInfo MatrixElements2FieldInfo{16,
+      MatrixElementsFieldInfo[0] + MatrixElementsFieldInfo[1]};
+  static const constexpr BitFieldInfo MatrixSizeFieldInfo{
+      16, MatrixElements2FieldInfo[0] + MatrixElements2FieldInfo[1]};
+  static const constexpr BitFieldInfo MatrixScalableFieldInfo{
+      1, MatrixSizeFieldInfo[0] + MatrixSizeFieldInfo[1]};
+  static_assert((MatrixScalableFieldInfo[0] + MatrixScalableFieldInfo[1]) <= 60,
+                "Insufficient bits to encode all data");
+  /// * Matrix-of-pointer (isPointer == 1 && isMatrix == 1):
+  ///   NumElements: 10;
+  ///   NumElements2: 10;
+  ///   SizeOfElement: 15;
+  ///   AddressSpace: 24;
+  ///   Scalable: 1;
+  static const constexpr BitFieldInfo PointerMatrixElementsFieldInfo{10, 0};
+  static const constexpr BitFieldInfo PointerMatrixElements2FieldInfo{
+      10,
+      PointerMatrixElementsFieldInfo[1] + PointerMatrixElementsFieldInfo[0]};
+  static const constexpr BitFieldInfo PointerMatrixSizeFieldInfo{
+      15,
+      PointerMatrixElements2FieldInfo[1] + PointerMatrixElements2FieldInfo[0]};
+  static const constexpr BitFieldInfo PointerMatrixAddressSpaceFieldInfo{
+      24, PointerMatrixSizeFieldInfo[1] + PointerMatrixSizeFieldInfo[0]};
+  static const constexpr BitFieldInfo PointerMatrixScalableFieldInfo{
+      1, PointerMatrixAddressSpaceFieldInfo[0] +
+             PointerMatrixAddressSpaceFieldInfo[1]};
+  static_assert((PointerMatrixScalableFieldInfo[0] +
+                 PointerMatrixScalableFieldInfo[1]) <= 60,
                 "Insufficient bits to encode all data");
 
   uint64_t IsScalar : 1;
   uint64_t IsPointer : 1;
   uint64_t IsVector : 1;
-  uint64_t RawData : 61;
+  uint64_t IsMatrix : 1;
+  uint64_t RawData : 60;
 
   static constexpr uint64_t getMask(const BitFieldInfo FieldInfo) {
     const int FieldSizeInBits = FieldInfo[0];
@@ -382,42 +475,116 @@ private:
     return getMask(FieldInfo) & (RawData >> FieldInfo[1]);
   }
 
-  constexpr void init(bool IsPointer, bool IsVector, bool IsScalar,
-                      ElementCount EC, uint64_t SizeInBits,
+  constexpr void initScalar(uint64_t SizeInBits) {
+    assert(SizeInBits <= std::numeric_limits<unsigned>::max() &&
+          "Not enough bits in LLT to represent size");
+    this->IsScalar = true;
+    this->IsPointer = false;
+    this->IsVector = false;
+    this->IsMatrix = false;
+    RawData = maskAndShift(SizeInBits, ScalarSizeFieldInfo);
+  }
+
+  constexpr void initVector(ElementCount EC, uint64_t SizeInBits) {
+    assert(SizeInBits <= std::numeric_limits<unsigned>::max() &&
+          "Not enough bits in LLT to represent size");
+    assert(EC.isVector() && "invalid number of vector elements");
+    this->IsScalar = false;
+    this->IsPointer = false;
+    this->IsVector = true;
+    this->IsMatrix = false;
+    RawData =
+        maskAndShift(EC.getKnownMinValue(), VectorElementsFieldInfo) |
+        maskAndShift(SizeInBits, VectorSizeFieldInfo) |
+        maskAndShift(EC.isScalable() ? 1 : 0, VectorScalableFieldInfo);
+  }
+
+  constexpr void initPointerVector(ElementCount EC, uint64_t SizeInBits,
                       unsigned AddressSpace) {
     assert(SizeInBits <= std::numeric_limits<unsigned>::max() &&
-           "Not enough bits in LLT to represent size");
-    this->IsPointer = IsPointer;
-    this->IsVector = IsVector;
-    this->IsScalar = IsScalar;
+          "Not enough bits in LLT to represent size");
+    assert(EC.isVector() && "invalid number of vector elements");
+    this->IsScalar = false;
+    this->IsPointer = true;
+    this->IsVector = true;
+    this->IsMatrix = false;
+    RawData =
+        maskAndShift(EC.getKnownMinValue(),
+                      PointerVectorElementsFieldInfo) |
+        maskAndShift(SizeInBits, PointerVectorSizeFieldInfo) |
+        maskAndShift(AddressSpace, PointerVectorAddressSpaceFieldInfo) |
+        maskAndShift(EC.isScalable() ? 1 : 0,
+                      PointerVectorScalableFieldInfo);
+  }
+
+  constexpr void initMatrix(unsigned NumElements, unsigned NumElements2, bool Scalable,
+      uint64_t SizeInBits) {
+    assert(SizeInBits <= std::numeric_limits<unsigned>::max() &&
+          "Not enough bits in LLT to represent size");
+    this->IsScalar = false;
+    this->IsPointer = false;
+    this->IsVector = false;
+    this->IsMatrix = true;
+    RawData =
+        maskAndShift(NumElements, MatrixElementsFieldInfo) |
+        maskAndShift(NumElements2, MatrixElements2FieldInfo) |
+        maskAndShift(SizeInBits, MatrixSizeFieldInfo) |
+        maskAndShift(Scalable ? 1 : 0, MatrixScalableFieldInfo);
+  }
+
+  constexpr void initPointerMatrix(unsigned NumElements, unsigned NumElements2, bool Scalable,
+      uint64_t SizeInBits, unsigned AddressSpace) {
+    assert(SizeInBits <= std::numeric_limits<unsigned>::max() &&
+          "Not enough bits in LLT to represent size");
+    this->IsScalar = false;
+    this->IsPointer = true;
+    this->IsVector = false;
+    this->IsMatrix = true;
+    RawData =
+        maskAndShift(NumElements, PointerMatrixElementsFieldInfo) |
+        maskAndShift(NumElements2, PointerMatrixElements2FieldInfo) |
+        maskAndShift(SizeInBits, PointerMatrixSizeFieldInfo) |
+        maskAndShift(AddressSpace, PointerMatrixAddressSpaceFieldInfo) |
+        maskAndShift(Scalable ? 1 : 0, PointerMatrixScalableFieldInfo);
+  }
+
+  constexpr void initPointer(uint64_t SizeInBits, unsigned AddressSpace) {
+    assert(SizeInBits <= std::numeric_limits<unsigned>::max() &&
+          "Not enough bits in LLT to represent size");
+    this->IsScalar = false;
+    this->IsPointer = true;
+    this->IsVector = false;
+    this->IsMatrix = false;
+    RawData = maskAndShift(SizeInBits, PointerSizeFieldInfo) |
+              maskAndShift(AddressSpace, PointerAddressSpaceFieldInfo);
+  }
+
+  constexpr void init(bool IsPointer, bool IsMatrix, bool IsVector, bool IsScalar,
+                      ElementCount EC, uint64_t SizeInBits,
+                      unsigned AddressSpace, unsigned NumElements = 0, unsigned NumElements2 = 0, bool Scalable = false) {
     if (IsScalar)
-      RawData = maskAndShift(SizeInBits, ScalarSizeFieldInfo);
-    else if (IsVector) {
-      assert(EC.isVector() && "invalid number of vector elements");
+      initScalar(SizeInBits);
+    else if (IsMatrix) {
       if (!IsPointer)
-        RawData =
-            maskAndShift(EC.getKnownMinValue(), VectorElementsFieldInfo) |
-            maskAndShift(SizeInBits, VectorSizeFieldInfo) |
-            maskAndShift(EC.isScalable() ? 1 : 0, VectorScalableFieldInfo);
+         initMatrix(NumElements, NumElements2, Scalable, SizeInBits);
       else
-        RawData =
-            maskAndShift(EC.getKnownMinValue(),
-                         PointerVectorElementsFieldInfo) |
-            maskAndShift(SizeInBits, PointerVectorSizeFieldInfo) |
-            maskAndShift(AddressSpace, PointerVectorAddressSpaceFieldInfo) |
-            maskAndShift(EC.isScalable() ? 1 : 0,
-                         PointerVectorScalableFieldInfo);
+         initPointerMatrix(NumElements, NumElements2, Scalable, SizeInBits, AddressSpace);
+    }
+    else if (IsVector) {
+      if (!IsPointer)
+        initVector(EC, SizeInBits);
+      else
+        initPointerVector(EC, SizeInBits, AddressSpace);
     } else if (IsPointer)
-      RawData = maskAndShift(SizeInBits, PointerSizeFieldInfo) |
-                maskAndShift(AddressSpace, PointerAddressSpaceFieldInfo);
+      initPointer(SizeInBits, AddressSpace);
     else
       llvm_unreachable("unexpected LLT configuration");
   }
 
 public:
   constexpr uint64_t getUniqueRAWLLTData() const {
-    return ((uint64_t)RawData) << 3 | ((uint64_t)IsScalar) << 2 |
-           ((uint64_t)IsPointer) << 1 | ((uint64_t)IsVector);
+    return ((uint64_t)RawData) << 4 | ((uint64_t)IsScalar) << 3 |
+           ((uint64_t)IsPointer) << 2 | ((uint64_t)IsVector) << 1 | ((uint64_t)IsMatrix);
   }
 };
 

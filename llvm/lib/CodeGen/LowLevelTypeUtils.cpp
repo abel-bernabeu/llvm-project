@@ -72,6 +72,10 @@ LLT llvm::getLLTForMVT(MVT Ty) {
 const llvm::fltSemantics &llvm::getFltSemanticForLLT(LLT Ty) {
   assert(Ty.isScalar() && "Expected a scalar type.");
   switch (Ty.getSizeInBits()) {
+#ifdef FP8_DATATYPES
+  case 8:
+    return APFloat::Float8E5M2();
+#endif
   case 16:
     return APFloat::IEEEhalf();
   case 32:

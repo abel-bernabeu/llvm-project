@@ -1178,6 +1178,18 @@ if(LLVM_INCLUDE_TESTS)
   umbrella_lit_testsuite_begin(check-all)
 endif()
 
+# Experimental features that are only enabled when explictly requested
+# at build time
+option(LLVM_EXPERIMENTAL_FP8_DATATYPES            "Experimental support for bf8 a hf8 datatypes" ON)
+option(LLVM_EXPERIMENTAL_SCALABLE_MATRIX          "Experimental support for scalable matrices" ON)
+
+if (LLVM_EXPERIMENTAL_FP8_DATATYPES)
+  add_compile_definitions(FP8_DATATYPES)
+endif()
+if (LLVM_EXPERIMENTAL_SCALABLE_MATRIX)
+  add_compile_definitions(SCALABLE_MATRIX)
+endif()
+
 # Put this before tblgen. Else we have a circular dependence.
 add_subdirectory(lib/Demangle)
 add_subdirectory(lib/Support)

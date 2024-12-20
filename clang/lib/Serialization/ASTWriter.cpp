@@ -406,6 +406,18 @@ void TypeLocWriter::VisitDependentSizedMatrixTypeLoc(
   Record.AddStmt(TL.getAttrColumnOperand());
 }
 
+#ifdef SCALABLE_MATRIX
+void TypeLocWriter::VisitScalableMatrixTypeLoc(ScalableMatrixTypeLoc TL) {
+  addSourceLocation(TL.getAttrNameLoc());
+  SourceRange range = TL.getAttrOperandParensRange();
+  addSourceLocation(range.getBegin());
+  addSourceLocation(range.getEnd());
+  Record.AddStmt(TL.getAttrRowOperand());
+  Record.AddStmt(TL.getAttrColumnOperand());
+  Record.AddStmt(TL.getAttrScalableOperand());
+}
+#endif
+
 void TypeLocWriter::VisitFunctionTypeLoc(FunctionTypeLoc TL) {
   addSourceLocation(TL.getLocalRangeBegin());
   addSourceLocation(TL.getLParenLoc());

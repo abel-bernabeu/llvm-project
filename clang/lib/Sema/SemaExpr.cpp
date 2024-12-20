@@ -4644,6 +4644,9 @@ static void captureVariablyModifiedType(ASTContext &Context, QualType T,
     case Type::Vector:
     case Type::ExtVector:
     case Type::ConstantMatrix:
+#ifdef SCALABLE_MATRIX
+    case Type::ScalableMatrix:
+#endif
     case Type::Record:
     case Type::Enum:
     case Type::TemplateSpecialization:
@@ -6871,6 +6874,10 @@ static bool isPlaceholderToRemoveAsArg(QualType type) {
 #include "clang/Basic/PPCTypes.def"
 #define RVV_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
 #include "clang/Basic/RISCVVTypes.def"
+#ifdef SCALABLE_MATRIX
+#define SMAT_BASE(Name, Id, SingletonId) case BuiltinType::Id:
+#include "clang/Basic/ScalableMatrixTypes.def"
+#endif
 #define WASM_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
 #include "clang/Basic/WebAssemblyReferenceTypes.def"
 #define PLACEHOLDER_TYPE(ID, SINGLETON_ID)
@@ -21857,6 +21864,10 @@ ExprResult Sema::CheckPlaceholderExpr(Expr *E) {
 #include "clang/Basic/PPCTypes.def"
 #define RVV_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
 #include "clang/Basic/RISCVVTypes.def"
+#ifdef SCALABLE_MATRIX
+#define SMAT_BASE(Name, Id, SingletonId) case BuiltinType::Id:
+#include "clang/Basic/ScalableMatrixTypes.def"
+#endif
 #define WASM_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
 #include "clang/Basic/WebAssemblyReferenceTypes.def"
 #define BUILTIN_TYPE(Id, SingletonId) case BuiltinType::Id:

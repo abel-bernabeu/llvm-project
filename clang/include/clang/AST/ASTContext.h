@@ -205,6 +205,9 @@ class ASTContext : public RefCountedBase<ASTContext> {
   mutable llvm::ContextualFoldingSet<DependentVectorType, ASTContext &>
       DependentVectorTypes;
   mutable llvm::FoldingSet<ConstantMatrixType> MatrixTypes;
+#ifdef SCALABLE_MATRIX
+  mutable llvm::FoldingSet<ScalableMatrixType> ScalableMatrixTypes;
+#endif
   mutable llvm::ContextualFoldingSet<DependentSizedMatrixType, ASTContext &>
       DependentSizedMatrixTypes;
   mutable llvm::FoldingSet<FunctionNoProtoType> FunctionNoProtoTypes;
@@ -1104,6 +1107,10 @@ public:
   CanQualType SatShortFractTy, SatFractTy, SatLongFractTy;
   CanQualType SatUnsignedShortFractTy, SatUnsignedFractTy,
       SatUnsignedLongFractTy;
+#ifdef FP8_DATATYPES
+  CanQualType BF8Ty;
+  CanQualType HF8Ty;
+#endif
   CanQualType HalfTy; // [OpenCL 6.1.1.1], ARM NEON
   CanQualType BFloat16Ty;
   CanQualType Float16Ty; // C11 extension ISO/IEC TS 18661-3
@@ -1132,6 +1139,11 @@ public:
 #define RVV_TYPE(Name, Id, SingletonId) \
   CanQualType SingletonId;
 #include "clang/Basic/RISCVVTypes.def"
+#ifdef SCALABLE_MATRIX
+#define SMAT_BASE(Name, Id, SingletonId) \
+  CanQualType SingletonId;
+#include "clang/Basic/ScalableMatrixTypes.def"
+#endif
 #define WASM_TYPE(Name, Id, SingletonId) CanQualType SingletonId;
 #include "clang/Basic/WebAssemblyReferenceTypes.def"
 
@@ -1481,6 +1493,24 @@ public:
   BuiltinVectorTypeInfo
   getBuiltinVectorTypeInfo(const BuiltinType *VecTy) const;
 
+#ifdef SCALABLE_MATRIX
+  // Convenience struct to return information about a builtin scalable matrix type.
+  struct BuiltinScalableMatrixTypeInfo {
+    QualType ElementType;
+    unsigned NumRows;
+    unsigned NumCols;
+    bool Scalable;
+    BuiltinScalableMatrixTypeInfo(QualType ElementType, unsigned NumRows,
+                                  unsigned NumCols, bool Scalable)
+        : ElementType(ElementType), NumRows(NumRows), NumCols(NumCols), Scalable(Scalable) {}
+  };
+
+  /// Returns the element type, element count and number of vectors
+  /// (in case of tuple) for a builtin vector type.
+  BuiltinScalableMatrixTypeInfo
+  getBuiltinScalableMatrixTypeInfo(const BuiltinType *MatTy) const;
+#endif
+
   /// Return the unique reference to a scalable vector type of the specified
   /// element type and scalable number of elements.
   /// For RISC-V, number of fields is also provided when it fetching for
@@ -1489,6 +1519,13 @@ public:
   /// \pre \p EltTy must be a built-in type.
   QualType getScalableVectorType(QualType EltTy, unsigned NumElts,
                                  unsigned NumFields = 1) const;
+#ifdef SCALABLE_MATRIX
+  /// Return the unique reference to a scalable matrix type of the specified
+  /// element type and scalable dimensions.
+  ///
+  /// \pre \p EltTy must be a built-in type.
+  QualType getScalableMatrixType(QualType EltTy, unsigned NumElts, unsigned NumElts2, bool Scalable) const;
+#endif
 
   /// Return a WebAssembly externref type.
   QualType getWebAssemblyExternrefType() const;
@@ -1499,6 +1536,7 @@ public:
   /// \pre \p VectorType must be a built-in type.
   QualType getVectorType(QualType VectorType, unsigned NumElts,
                          VectorKind VecKind) const;
+
   /// Return the unique reference to the type for a dependently sized vector of
   /// the specified element type.
   QualType getDependentVectorType(QualType VectorType, Expr *SizeExpr,

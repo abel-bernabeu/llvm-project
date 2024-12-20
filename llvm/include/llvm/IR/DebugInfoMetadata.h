@@ -781,6 +781,9 @@ public:
     return getFlags() & FlagObjcClassComplete;
   }
   bool isVector() const { return getFlags() & FlagVector; }
+#ifdef SCALABLE_MATRIX
+  bool isMatrix() const { return getFlags() & FlagMatrix; }
+#endif
   bool isBitField() const { return getFlags() & FlagBitField; }
   bool isStaticMember() const { return getFlags() & FlagStaticMember; }
   bool isLValueReference() const { return getFlags() & FlagLValueReference; }

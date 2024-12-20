@@ -228,6 +228,10 @@ enum ScalarTypeKind : uint8_t {
   UnsignedInteger,
   Float,
   BFloat,
+#ifdef FP8_DATATYPES
+  BF8,
+  HF8,
+#endif
   Invalid,
   Undefined,
 };

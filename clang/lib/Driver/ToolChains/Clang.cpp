@@ -5812,6 +5812,18 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     Args.AddLastArg(CmdArgs, options::OPT_mtls_size_EQ);
   }
 
+#ifdef SCALABLE_MATRIX
+  if (Arg *A = Args.getLastArg(options::OPT_mscalable_matrix_specific_size_bits_EQ)) {
+    StringRef Value = A->getValue();
+    unsigned ScalableMatrixSizeBits = 0;
+    Value.getAsInteger(10, ScalableMatrixSizeBits);
+    if (ScalableMatrixSizeBits % 8)
+      D.Diag(diag::err_drv_unsupported_scalable_matrix_size_bits)
+          << A->getAsString(Args);
+    Args.AddLastArg(CmdArgs, options::OPT_mscalable_matrix_specific_size_bits_EQ);
+  }
+#endif
+
   // Add the target cpu
   std::string CPU = getCPUName(D, Args, Triple, /*FromAs*/ false);
   if (!CPU.empty()) {

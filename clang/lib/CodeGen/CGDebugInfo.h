@@ -210,6 +210,9 @@ class CGDebugInfo {
   llvm::DIType *CreateType(const ObjCTypeParamType *Ty, llvm::DIFile *Unit);
 
   llvm::DIType *CreateType(const VectorType *Ty, llvm::DIFile *F);
+#ifdef SCALABLE_MATRIX
+  llvm::DIType *CreateType(const ScalableMatrixType *Ty, llvm::DIFile *F);
+#endif
   llvm::DIType *CreateType(const ConstantMatrixType *Ty, llvm::DIFile *F);
   llvm::DIType *CreateType(const ArrayType *Ty, llvm::DIFile *F);
   llvm::DIType *CreateType(const LValueReferenceType *Ty, llvm::DIFile *F);

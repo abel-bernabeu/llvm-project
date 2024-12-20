@@ -754,6 +754,10 @@ bool PrintfSpecifier::fixType(QualType QT, const LangOptions &LangOpt,
   case BuiltinType::Char32:
   case BuiltinType::UInt128:
   case BuiltinType::Int128:
+#ifdef FP8_DATATYPES
+  case BuiltinType::BF8:
+  case BuiltinType::HF8:
+#endif
   case BuiltinType::Half:
   case BuiltinType::BFloat16:
   case BuiltinType::Float16:
@@ -800,6 +804,10 @@ bool PrintfSpecifier::fixType(QualType QT, const LangOptions &LangOpt,
 #include "clang/Basic/PPCTypes.def"
 #define RVV_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
 #include "clang/Basic/RISCVVTypes.def"
+#ifdef SCALABLE_MATRIX
+#define SMAT_BASE(Name, Id, SingletonId) case BuiltinType::Id:
+#include "clang/Basic/ScalableMatrixTypes.def"
+#endif
 #define WASM_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
 #include "clang/Basic/WebAssemblyReferenceTypes.def"
 #define SIGNED_TYPE(Id, SingletonId)

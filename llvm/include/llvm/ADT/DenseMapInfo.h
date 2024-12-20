@@ -109,6 +109,19 @@ template <> struct DenseMapInfo<unsigned char> {
   }
 };
 
+#ifdef SCALABLE_MATRIX
+// Provide DenseMapInfo for bool.
+template <> struct DenseMapInfo<bool> {
+  static inline unsigned char getEmptyKey() { return ~0; }
+  static inline unsigned char getTombstoneKey() { return ~0 - 1; }
+  static unsigned getHashValue(const bool &Val) { return Val ? 37U : 0; }
+
+  static bool isEqual(const bool &LHS, const bool &RHS) {
+    return LHS == RHS;
+  }
+};
+#endif
+
 // Provide DenseMapInfo for unsigned shorts.
 template <> struct DenseMapInfo<unsigned short> {
   static inline unsigned short getEmptyKey() { return 0xFFFF; }

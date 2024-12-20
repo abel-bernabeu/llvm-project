@@ -144,7 +144,11 @@ namespace llvm {
           FunctionSections(false), DataSections(false),
           IgnoreXCOFFVisibility(false), XCOFFTracebackTable(true),
           UniqueSectionNames(true), UniqueBasicBlockSectionNames(false),
+#ifdef SCALABLE_MATRIX
+          TrapUnreachable(false), NoTrapAfterNoreturn(false), TLSSize(0), ScalableMatrixSizeBits(0),
+#else
           TrapUnreachable(false), NoTrapAfterNoreturn(false), TLSSize(0),
+#endif
           EmulatedTLS(false), EnableIPRA(false), EmitStackSizeSection(false),
           EnableMachineOutliner(false), EnableMachineFunctionSplitter(false),
           SupportsDefaultOutlining(false), EmitAddrsig(false),
@@ -291,6 +295,9 @@ namespace llvm {
     /// Bit size of immediate TLS offsets (0 == use the default).
     unsigned TLSSize : 8;
 
+#ifdef SCALABLE_MATRIX
+    unsigned ScalableMatrixSizeBits : 32;
+#endif
     /// EmulatedTLS - This flag enables emulated TLS model, using emutls
     /// function in the runtime library..
     unsigned EmulatedTLS : 1;

@@ -16,26 +16,35 @@
 using namespace llvm;
 
 LLT::LLT(MVT VT) {
-  if (VT.isVector()) {
+  if (VT.isMatrix()) {
+    bool asMatrix = (VT.getMatrixNumElements() > 1 && VT.getMatrixNumElements() > 1) || VT.isScalableMatrix();
+    init(/*IsPointer=*/false, asMatrix, /*IsVector=*/false, /*IsScalar=*/!asMatrix,
+         ElementCount::getFixed(0), VT.getMatrixElementType().getSizeInBits(),
+         /*AddressSpace=*/0, VT.getMatrixNumElements(), VT.getMatrixNumElements2(), VT.isScalableMatrix());
+  } else if (VT.isVector()) {
     bool asVector = VT.getVectorMinNumElements() > 1 || VT.isScalableVector();
-    init(/*IsPointer=*/false, asVector, /*IsScalar=*/!asVector,
+    init(/*IsPointer=*/false, /*IsMatrix=*/false, asVector, /*IsScalar=*/!asVector,
          VT.getVectorElementCount(), VT.getVectorElementType().getSizeInBits(),
          /*AddressSpace=*/0);
   } else if (VT.isValid() && !VT.isScalableTargetExtVT()) {
     // Aggregates are no different from real scalars as far as GlobalISel is
     // concerned.
-    init(/*IsPointer=*/false, /*IsVector=*/false, /*IsScalar=*/true,
+    init(/*IsPointer=*/false, /*IsMatrix=*/false, /*IsVector=*/false, /*IsScalar=*/true,
          ElementCount::getFixed(0), VT.getSizeInBits(), /*AddressSpace=*/0);
   } else {
     IsScalar = false;
     IsPointer = false;
     IsVector = false;
+    IsMatrix = false;
     RawData = 0;
   }
 }
 
 void LLT::print(raw_ostream &OS) const {
-  if (isVector()) {
+  if (isMatrix()) {
+    OS << "<";
+    OS << getElementCount() << " x " << getElementType() << ">";
+  } else if (isVector()) {
     OS << "<";
     OS << getElementCount() << " x " << getElementType() << ">";
   } else if (isPointer())
@@ -64,3 +73,12 @@ const constexpr LLT::BitFieldInfo LLT::PointerVectorElementsFieldInfo;
 const constexpr LLT::BitFieldInfo LLT::PointerVectorScalableFieldInfo;
 const constexpr LLT::BitFieldInfo LLT::PointerVectorSizeFieldInfo;
 const constexpr LLT::BitFieldInfo LLT::PointerVectorAddressSpaceFieldInfo;
+const constexpr LLT::BitFieldInfo LLT::MatrixElementsFieldInfo;
+const constexpr LLT::BitFieldInfo LLT::MatrixElements2FieldInfo;
+const constexpr LLT::BitFieldInfo LLT::MatrixSizeFieldInfo;
+const constexpr LLT::BitFieldInfo LLT::MatrixScalableFieldInfo;
+const constexpr LLT::BitFieldInfo LLT::PointerMatrixElementsFieldInfo;
+const constexpr LLT::BitFieldInfo LLT::PointerMatrixElements2FieldInfo;
+const constexpr LLT::BitFieldInfo LLT::PointerMatrixSizeFieldInfo;
+const constexpr LLT::BitFieldInfo LLT::PointerMatrixAddressSpaceFieldInfo;
+const constexpr LLT::BitFieldInfo LLT::PointerMatrixScalableFieldInfo;

@@ -642,6 +642,41 @@ inline ElementCount VectorType::getElementCount() const {
   return ElementCount::get(ElementQuantity, isa<ScalableVectorType>(this));
 }
 
+#ifdef SCALABLE_MATRIX
+/// Class to represent scalable matrices
+class ScalableMatrixType : public Type {
+private:
+  Type *ContainedType;
+  unsigned NumElts;
+  unsigned NumElts2;
+  bool Scalable;
+
+protected:
+  ScalableMatrixType(Type *ElTy, unsigned NumElts, unsigned NumElts2, bool Scalable);
+  
+public:
+
+  Type *getElementType() const { return ContainedType; }
+  unsigned getNumElts() const { return NumElts; }
+  unsigned getNumElts2() const { return NumElts2; }
+  bool getScalable() const { return Scalable; }
+
+  /// Return true if the specified type is valid as a element type.
+  static bool isValidElementType(Type *ElemTy);
+
+  static ScalableMatrixType *get(Type *ElementType, unsigned MinNumElts, unsigned MinNumElts2, bool Scalable);
+
+  static ScalableMatrixType *get(Type *ElementType,
+                                 const ScalableMatrixType *SMTy) {
+    return get(ElementType, SMTy->getNumElts(), SMTy->getNumElts2(), SMTy->getScalable());
+  }
+
+  static bool classof(const Type *T) {
+    return T->getTypeID() == ScalableMatrixTyID;
+  }
+};
+#endif
+
 /// Class to represent pointers.
 class PointerType : public Type {
   explicit PointerType(LLVMContext &C, unsigned AddrSpace);

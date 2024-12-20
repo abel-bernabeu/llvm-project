@@ -544,6 +544,18 @@ public:
     return Type::getBFloatTy(Context);
   }
 
+#ifdef FP8_DATATYPES
+  /// Fetch the type representing a bf8 float point value.
+  Type *getBF8Ty() {
+    return Type::getBF8Ty(Context);
+  }
+
+  /// Fetch the type representing a hf8 float point value.
+  Type *getHF8Ty() {
+    return Type::getHF8Ty(Context);
+  }
+
+#endif
   /// Fetch the type representing a 32-bit floating point value.
   Type *getFloatTy() {
     return Type::getFloatTy(Context);

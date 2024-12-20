@@ -2010,6 +2010,69 @@ SDValue SelectionDAG::getVScale(const SDLoc &DL, EVT VT, APInt MulImm,
   return getNode(ISD::VSCALE, DL, VT, getConstant(MulImm, DL, VT));
 }
 
+SDValue SelectionDAG::getMScale(const SDLoc &DL, EVT VT, APInt MulImm,
+                                bool ConstantFold) {
+  assert(MulImm.getBitWidth() == VT.getSizeInBits() &&
+         "APInt size does not match type size!");
+
+  if (MulImm == 0)
+    return getConstant(0, DL, VT);
+
+#if 0 // SW-21081: implement get{M,N,MN}ScaleRange for constant folding
+  if (ConstantFold) {
+    const MachineFunction &MF = getMachineFunction();
+    const Function &F = MF.getFunction();
+    ConstantRange CR = getMScaleRange(&F, 64);
+    if (const APInt *C = CR.getSingleElement())
+      return getConstant(MulImm * C->getZExtValue(), DL, VT);
+  }
+#endif
+
+  return getNode(ISD::MNSCALE, DL, VT, getConstant(MulImm, DL, VT));
+}
+
+SDValue SelectionDAG::getNScale(const SDLoc &DL, EVT VT, APInt MulImm,
+                                bool ConstantFold) {
+  assert(MulImm.getBitWidth() == VT.getSizeInBits() &&
+         "APInt size does not match type size!");
+
+  if (MulImm == 0)
+    return getConstant(0, DL, VT);
+
+#if 0 // SW-21081: implement get{M,N,MN}ScaleRange for constant folding
+  if (ConstantFold) {
+    const MachineFunction &MF = getMachineFunction();
+    const Function &F = MF.getFunction();
+    ConstantRange CR = getNScaleRange(&F, 64);
+    if (const APInt *C = CR.getSingleElement())
+      return getConstant(MulImm * C->getZExtValue(), DL, VT);
+  }
+#endif
+
+  return getNode(ISD::NSCALE, DL, VT, getConstant(MulImm, DL, VT));
+}
+
+SDValue SelectionDAG::getMNScale(const SDLoc &DL, EVT VT, APInt MulImm,
+                                bool ConstantFold) {
+  assert(MulImm.getBitWidth() == VT.getSizeInBits() &&
+         "APInt size does not match type size!");
+
+  if (MulImm == 0)
+    return getConstant(0, DL, VT);
+
+#if 0 // SW-21081: implement get{M,N,MN}ScaleRange for constant folding
+  if (ConstantFold) {
+    const MachineFunction &MF = getMachineFunction();
+    const Function &F = MF.getFunction();
+    ConstantRange CR = getMNScaleRange(&F, 64);
+    if (const APInt *C = CR.getSingleElement())
+      return getConstant(MulImm * C->getZExtValue(), DL, VT);
+  }
+#endif
+
+  return getNode(ISD::MNSCALE, DL, VT, getConstant(MulImm, DL, VT));
+}
+
 SDValue SelectionDAG::getElementCount(const SDLoc &DL, EVT VT, ElementCount EC,
                                       bool ConstantFold) {
   if (EC.isScalable())
@@ -2450,8 +2513,14 @@ SDValue SelectionDAG::CreateStackTemporary(TypeSize Bytes, Align Alignment) {
   MachineFrameInfo &MFI = MF->getFrameInfo();
   const TargetFrameLowering *TFI = MF->getSubtarget().getFrameLowering();
   int StackID = 0;
-  if (Bytes.isScalable())
-    StackID = TFI->getStackIDForScalableVectors();
+  if (Bytes.isScalable()) {
+    if (Bytes.isScalableMN())
+      StackID = TFI->getStackIDForScalableMatrices();
+    else {
+      assert(Bytes.isScalableV() && "Only vectors and matrices are known to be potentially scalable");
+      StackID = TFI->getStackIDForScalableVectors();
+    }
+  }
   // The stack id gives an indication of whether the object is scalable or
   // not, so it's safe to pass in the minimum size here.
   int FrameIdx = MFI.CreateStackObject(Bytes.getKnownMinValue(), Alignment,
@@ -2459,17 +2528,17 @@ SDValue SelectionDAG::CreateStackTemporary(TypeSize Bytes, Align Alignment) {
   return getFrameIndex(FrameIdx, TLI->getFrameIndexTy(getDataLayout()));
 }
 
-SDValue SelectionDAG::CreateStackTemporary(EVT VT, unsigned minAlign) {
+SDValue SelectionDAG::CreateStackTemporary(EVT VT, Align minAlign) {
   Type *Ty = VT.getTypeForEVT(*getContext());
   Align StackAlign =
-      std::max(getDataLayout().getPrefTypeAlign(Ty), Align(minAlign));
+      std::max(getDataLayout().getPrefTypeAlign(Ty), minAlign);
   return CreateStackTemporary(VT.getStoreSize(), StackAlign);
 }
 
 SDValue SelectionDAG::CreateStackTemporary(EVT VT1, EVT VT2) {
   TypeSize VT1Size = VT1.getStoreSize();
   TypeSize VT2Size = VT2.getStoreSize();
-  assert(VT1Size.isScalable() == VT2Size.isScalable() &&
+  assert(VT1Size.getScale() == VT2Size.getScale() &&
          "Don't know how to choose the maximum size when creating a stack "
          "temporary");
   TypeSize Bytes = VT1Size.getKnownMinValue() > VT2Size.getKnownMinValue()
@@ -7363,10 +7432,19 @@ SDValue SelectionDAG::getMemBasePlusOffset(SDValue Base, TypeSize Offset,
   EVT VT = Base.getValueType();
   SDValue Index;
 
-  if (Offset.isScalable())
-    Index = getVScale(DL, Base.getValueType(),
-                      APInt(Base.getValueSizeInBits().getFixedValue(),
-                            Offset.getKnownMinValue()));
+  if (Offset.isScalable()) {
+    if (Offset.isScalableMN()) {
+      Index = getMNScale(DL, Base.getValueType(),
+                        APInt(Base.getValueSizeInBits().getFixedValue(),
+                              Offset.getKnownMinValue()));
+    }
+    else if (Offset.isScalableV()) {
+      Index = getVScale(DL, Base.getValueType(),
+                        APInt(Base.getValueSizeInBits().getFixedValue(),
+                              Offset.getKnownMinValue()));
+    }
+  }
+
   else
     Index = getConstant(Offset.getFixedValue(), DL, VT);
 

@@ -85,6 +85,10 @@ struct TransferrableTargetInfo {
   unsigned char PointerWidth, PointerAlign;
   unsigned char BoolWidth, BoolAlign;
   unsigned char IntWidth, IntAlign;
+#ifdef FP8_DATATYPES
+  unsigned char BF8Width, BF8Align;
+  unsigned char HF8Width, HF8Align;
+#endif
   unsigned char HalfWidth, HalfAlign;
   unsigned char BFloat16Width, BFloat16Align;
   unsigned char FloatWidth, FloatAlign;
@@ -129,6 +133,9 @@ struct TransferrableTargetInfo {
   unsigned MaxVectorAlign;
   unsigned MaxTLSAlign;
 
+#ifdef FP8_DATATYPES
+  const llvm::fltSemantics *BF8Format, *HF8Format;
+#endif
   const llvm::fltSemantics *HalfFormat, *BFloat16Format, *FloatFormat,
       *DoubleFormat, *LongDoubleFormat, *Float128Format, *Ibm128Format;
 
@@ -219,6 +226,10 @@ protected:
   bool TLSSupported;
   bool VLASupported;
   bool NoAsmVariants;  // True if {|} are normal characters.
+#ifdef FP8_DATATYPES
+  bool HasBF8Type;
+  bool HasHF8Type;
+#endif
   bool HasLegalHalfType; // True if the backend supports operations on the half
                          // LLVM IR type.
   bool HalfArgsAndReturns;
@@ -262,6 +273,11 @@ protected:
 
   LLVM_PREFERRED_TYPE(bool)
   unsigned HasRISCVVTypes : 1;
+
+#ifdef SCALABLE_MATRIX
+  LLVM_PREFERRED_TYPE(bool)
+  unsigned HasScalableMatrixTypes : 1;
+#endif
 
   LLVM_PREFERRED_TYPE(bool)
   unsigned AllowAMDGPUUnsafeFPAtomics : 1;
@@ -658,6 +674,14 @@ public:
     return 128;
   }
 
+#ifdef FP8_DATATYPES
+  /// Determine whether _BFloat8 is supported on this target.
+  virtual bool hasBF8Type() const { return HasBF8Type; }
+
+  /// Determine whether _HF8 is supported on this target.
+  virtual bool hasHF8Type() const { return HasHF8Type; }
+#endif
+
   /// Determine whether _Float16 is supported on this target.
   virtual bool hasLegalHalfType() const { return HasLegalHalfType; }
 
@@ -731,6 +755,18 @@ public:
   unsigned getChar32Width() const { return getTypeWidth(Char32Type); }
   unsigned getChar32Align() const { return getTypeAlign(Char32Type); }
 
+#ifdef FP8_DATATYPES
+  /// getBF8Width/Align/Format - Return the size/align/format of 'bf8'.
+  unsigned getBF8Width() const { return BF8Width; }
+  unsigned getBF8Align() const { return BF8Align; }
+  const llvm::fltSemantics &getBF8Format() const { return *BF8Format; }
+
+  /// getHF8Width/Align/Format - Return the size/align/format of 'hf8'.
+  unsigned getHF8Width() const { return HF8Width; }
+  unsigned getHF8Align() const { return HF8Align; }
+  const llvm::fltSemantics &getHF8Format() const { return *HF8Format; }
+#endif
+
   /// getHalfWidth/Align/Format - Return the size/align/format of 'half'.
   unsigned getHalfWidth() const { return HalfWidth; }
   unsigned getHalfAlign() const { return HalfAlign; }
@@ -784,7 +820,14 @@ public:
     llvm_unreachable("ibm128 not implemented on this target");
   }
 
+#ifdef FP8_DATATYPES
+  /// Return the mangled code of bfloat8.
+  virtual const char *getBF8Mangling() const { return "DF8b"; }
+
   /// Return the mangled code of bfloat.
+  virtual const char *getHF8Mangling() const { return "DF8h"; }
+#endif
+  /// Return the mangled code of bfloat16.
   virtual const char *getBFloat16Mangling() const { return "DF16b"; }
 
   /// Return the value for the C99 FLT_EVAL_METHOD macro.
@@ -1003,6 +1046,11 @@ public:
   /// Returns whether or not the RISC-V V built-in types are
   /// available on this target.
   bool hasRISCVVTypes() const { return HasRISCVVTypes; }
+
+#ifdef SCALABLE_MATRIX
+  /// Returns whether scalable matrix data types are available on this target.
+  bool hasScalableMatrixTypes() const { return HasScalableMatrixTypes; }
+#endif
 
   /// Returns whether or not the AMDGPU unsafe floating point atomics are
   /// allowed.

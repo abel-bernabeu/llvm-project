@@ -4986,7 +4986,7 @@ static Value *simplifyGEPInst(Type *SrcTy, Value *Ptr,
     return UndefValue::get(GEPTy);
 
   bool IsScalableVec =
-      SrcTy->isScalableTy() || any_of(Indices, [](const Value *V) {
+      (SrcTy->getScaleID() == TypeSize::ScaleID::V) || any_of(Indices, [](const Value *V) {
         return isa<ScalableVectorType>(V->getType());
       });
 

@@ -15,6 +15,10 @@
 #ifndef LLVM_C_CORE_H
 #define LLVM_C_CORE_H
 
+#ifdef SCALABLE_MATRIX
+#include <stdbool.h>
+#endif
+
 #include "llvm-c/Deprecated.h"
 #include "llvm-c/ErrorHandling.h"
 #include "llvm-c/ExternC.h"
@@ -165,8 +169,16 @@ typedef enum {
   LLVMTokenTypeKind,     /**< Tokens */
   LLVMScalableVectorTypeKind, /**< Scalable SIMD vector type */
   LLVMBFloatTypeKind,    /**< 16 bit brain floating point type */
+#ifdef FP8_DATATYPES
+  LLVMBF8TypeKind,       /**< 8 bit bf8 floating point type */
+  LLVMHF8TypeKind,       /**< 8 bit hf8 floating point type */
+#endif
   LLVMX86_AMXTypeKind,   /**< X86 AMX */
   LLVMTargetExtTypeKind, /**< Target extension type */
+#ifdef SCALABLE_MATRIX
+  LLVMMatrixTypeKind,    /**< Fixed dimensions matrix type */
+  LLVMScalableMatrixTypeKind, /**< Scalable dimensions dimensions matrix type */
+#endif
 } LLVMTypeKind;
 
 typedef enum {
@@ -1286,6 +1298,18 @@ LLVMTypeRef LLVMHalfTypeInContext(LLVMContextRef C);
  */
 LLVMTypeRef LLVMBFloatTypeInContext(LLVMContextRef C);
 
+#ifdef FP8_DATATYPES
+/**
+ * Obtain a 8-bit bf8 floating point type from a context.
+ */
+LLVMTypeRef LLVMBF8TypeInContext(LLVMContextRef C);
+
+/**
+ * Obtain a 8-bit bf8 floating point type from a context.
+ */
+LLVMTypeRef LLVMHF8TypeInContext(LLVMContextRef C);
+
+#endif
 /**
  * Obtain a 32-bit floating point type from a context.
  */
@@ -1608,7 +1632,20 @@ LLVMTypeRef LLVMVectorType(LLVMTypeRef ElementType, unsigned ElementCount);
  */
 LLVMTypeRef LLVMScalableVectorType(LLVMTypeRef ElementType,
                                    unsigned ElementCount);
-
+#ifdef SCALABLE_MATRIX
+/**
+ * Create a matrix type that contains NumElts x NumElts2 elements and
+ * it is mn-scalable or not, depending on the Scalable argument.
+ *
+ * The created type will exist in the context thats its element type
+ * exists in.
+ *
+ * @see llvm::ScalableMatrixType::get()
+ */
+LLVMTypeRef LLVMMatrixType(LLVMTypeRef ElementType,
+                           unsigned NumElts, unsigned NumElts2,
+                           bool Scalable);
+#endif
 /**
  * Obtain the (possibly scalable) number of elements in a vector type.
  *
@@ -1618,6 +1655,34 @@ LLVMTypeRef LLVMScalableVectorType(LLVMTypeRef ElementType,
  */
 unsigned LLVMGetVectorSize(LLVMTypeRef VectorTy);
 
+#ifdef SCALABLE_MATRIX
+/**
+ * Obtain the number of elements in the first dimension of a scalable matrix type.
+ *
+ * This only works on types that represent scalable matrices.
+ *
+ * @see llvm::ScalableMatrixType::getNumElts()
+ */
+unsigned LLVMGetMatrixNumElts(LLVMTypeRef MatrixTy);
+
+/**
+ * Obtain the number of elements in the second dimension of a scalable matrix type.
+ *
+ * This only works on types that represent scalable matrices.
+ *
+ * @see llvm::ScalableMatrixType::getNumElts2()
+ */
+unsigned LLVMGetMatrixNumElts2(LLVMTypeRef MatrixTy);
+
+/**
+ * Obtain whether the matrix is scalable.
+ *
+ * This only works on types that represent scalable matrices.
+ *
+ * @see llvm::ScalableMatrixType::getScalable()
+ */
+bool LLVMGetMatrixScalable(LLVMTypeRef MatrixTy);
+#endif
 /**
  * @}
  */

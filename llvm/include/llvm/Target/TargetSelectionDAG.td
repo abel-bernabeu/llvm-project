@@ -352,6 +352,9 @@ def bb         : SDNode<"ISD::BasicBlock", SDTOther   , [], "BasicBlockSDNode">;
 def cond       : SDNode<"ISD::CONDCODE"  , SDTOther   , [], "CondCodeSDNode">;
 def undef      : SDNode<"ISD::UNDEF"     , SDTUNDEF   , []>;
 def vscale     : SDNode<"ISD::VSCALE"    , SDTIntUnaryOp, []>;
+def mscale     : SDNode<"ISD::MSCALE"    , SDTIntUnaryOp, []>;
+def nscale     : SDNode<"ISD::NSCALE"    , SDTIntUnaryOp, []>;
+def mnscale    : SDNode<"ISD::MNSCALE"   , SDTIntUnaryOp, []>;
 def globaladdr : SDNode<"ISD::GlobalAddress",         SDTPtrLeaf, [],
                         "GlobalAddressSDNode">;
 def tglobaladdr : SDNode<"ISD::TargetGlobalAddress",  SDTPtrLeaf, [],

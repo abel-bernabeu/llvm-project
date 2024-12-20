@@ -2590,6 +2590,15 @@ void MicrosoftCXXNameMangler::mangleType(const BuiltinType *T, Qualifiers,
       Out << "$halff@";
     break;
 
+#ifdef FP8_DATATYPES
+  case BuiltinType::BF8:
+    mangleArtificialTagType(TagTypeKind::Struct, "__bf8", {"__clang"});
+    break;
+
+  case BuiltinType::HF8:
+    mangleArtificialTagType(TagTypeKind::Struct, "__hf8", {"__clang"});
+    break;
+#endif
   case BuiltinType::BFloat16:
     mangleArtificialTagType(TagTypeKind::Struct, "__bf16", {"__clang"});
     break;
@@ -2609,6 +2618,10 @@ void MicrosoftCXXNameMangler::mangleType(const BuiltinType *T, Qualifiers,
 #include "clang/Basic/PPCTypes.def"
 #define RVV_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
 #include "clang/Basic/RISCVVTypes.def"
+#ifdef SCALABLE_MATRIX
+#define SMAT_BASE(Name, Id, SingletonId) case BuiltinType::Id:
+#include "clang/Basic/ScalableMatrixTypes.def"
+#endif
   case BuiltinType::ShortAccum:
   case BuiltinType::Accum:
   case BuiltinType::LongAccum:
@@ -3296,6 +3309,13 @@ void MicrosoftCXXNameMangler::mangleType(const DependentSizedMatrixType *T,
       "Cannot mangle this dependent-sized matrix type yet");
   Diags.Report(Range.getBegin(), DiagID) << Range;
 }
+
+#ifdef SCALABLE_MATRIX
+void MicrosoftCXXNameMangler::mangleType(const ScalableMatrixType *T,
+                                         Qualifiers, SourceRange) {
+  llvm_unreachable("Should have been special cased");
+}
+#endif
 
 void MicrosoftCXXNameMangler::mangleType(const DependentAddressSpaceType *T,
                                          Qualifiers, SourceRange Range) {

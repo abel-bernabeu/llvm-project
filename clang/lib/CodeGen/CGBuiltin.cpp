@@ -21122,7 +21122,11 @@ Value *CodeGenFunction::EmitRISCVBuiltinExpr(unsigned BuiltinID,
         getLLVMContext(), llvm::ConstantAsMetadata::get(Builder.getInt32(1)));
 
     int Width;
+#ifdef SCALABLE_MATRIX
+    if(ResTy->getScaleID() == TypeSize::ScaleID::V) {
+#else
     if(ResTy->isScalableTy()) {
+#endif
       const ScalableVectorType *SVTy = cast<ScalableVectorType>(ResTy);
       llvm::Type *ScalarTy = ResTy->getScalarType();
       Width = ScalarTy->getPrimitiveSizeInBits() *

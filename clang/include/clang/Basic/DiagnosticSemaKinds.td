@@ -11966,6 +11966,9 @@ def err_builtin_matrix_stride_too_small: Error<
 def err_builtin_matrix_invalid_dimension: Error<
   "%0 dimension is outside the allowed range [1, %1]">;
 
+def err_builtin_scalable_matrix_type_not_supported: Error<
+  "scalable matrix type extension not supported for this target">;
+
 def warn_mismatched_import : Warning<
   "import %select{module|name}0 (%1) does not match the import %select{module|name}0 (%2) of the "
   "previous declaration">,

@@ -1035,6 +1035,10 @@ DEF_TRAVERSE_TYPE(DependentSizedMatrixType, {
   TRY_TO(TraverseType(T->getElementType()));
 })
 
+#ifdef SCALABLE_MATRIX
+DEF_TRAVERSE_TYPE(ScalableMatrixType, { TRY_TO(TraverseType(T->getElementType())); })
+#endif
+
 DEF_TRAVERSE_TYPE(FunctionNoProtoType,
                   { TRY_TO(TraverseType(T->getReturnType())); })
 
@@ -1301,6 +1305,15 @@ DEF_TRAVERSE_TYPELOC(DependentSizedMatrixType, {
   TRY_TO(TraverseStmt(TL.getAttrColumnOperand()));
   TRY_TO(TraverseType(TL.getTypePtr()->getElementType()));
 })
+
+#ifdef SCALABLE_MATRIX
+DEF_TRAVERSE_TYPELOC(ScalableMatrixType, {
+  TRY_TO(TraverseStmt(TL.getAttrRowOperand()));
+  TRY_TO(TraverseStmt(TL.getAttrColumnOperand()));
+  TRY_TO(TraverseStmt(TL.getAttrScalableOperand()));
+  TRY_TO(TraverseType(TL.getTypePtr()->getElementType()));
+})
+#endif
 
 DEF_TRAVERSE_TYPELOC(FunctionNoProtoType,
                      { TRY_TO(TraverseTypeLoc(TL.getReturnLoc())); })

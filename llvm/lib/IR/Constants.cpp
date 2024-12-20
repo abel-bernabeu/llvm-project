@@ -357,6 +357,10 @@ Constant *Constant::getNullValue(Type *Ty) {
   switch (Ty->getTypeID()) {
   case Type::IntegerTyID:
     return ConstantInt::get(Ty, 0);
+#ifdef FP8_DATATYPES
+  case Type::BF8TyID:
+  case Type::HF8TyID:
+#endif
   case Type::HalfTyID:
   case Type::BFloatTyID:
   case Type::FloatTyID:
@@ -1536,6 +1540,22 @@ bool ConstantFP::isValueValidForType(Type *Ty, const APFloat& Val) {
     Val2.convert(APFloat::BFloat(), APFloat::rmNearestTiesToEven, &losesInfo);
     return !losesInfo;
   }
+#ifdef FP8_DATATYPES
+  case Type::BF8TyID: {
+    if (&Val2.getSemantics() == &APFloat::Float8E5M2())
+      return true;
+    Val2.convert(APFloat::Float8E5M2(), APFloat::rmNearestTiesToEven,
+                 &losesInfo);
+    return !losesInfo;
+  }
+  case Type::HF8TyID: {
+    if (&Val2.getSemantics() == &APFloat::Float8E4M3FN())
+      return true;
+    Val2.convert(APFloat::Float8E4M3FN(), APFloat::rmNearestTiesToEven,
+                 &losesInfo);
+    return !losesInfo;
+  }
+#endif
   case Type::FloatTyID: {
     if (&Val2.getSemantics() == &APFloat::IEEEsingle())
       return true;
@@ -2968,6 +2988,8 @@ APFloat ConstantDataSequential::getElementAsAPFloat(unsigned Elt) const {
   switch (getElementType()->getTypeID()) {
   default:
     llvm_unreachable("Accessor can only be used when element is float/double!");
+#ifdef FP8_DATATYPES
+#endif
   case Type::HalfTyID: {
     auto EltVal = *reinterpret_cast<const uint16_t *>(EltPtr);
     return APFloat(APFloat::IEEEhalf(), APInt(16, EltVal));

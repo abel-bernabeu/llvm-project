@@ -92,6 +92,7 @@ CGOPT(bool, IgnoreXCOFFVisibility)
 CGOPT(bool, XCOFFTracebackTable)
 CGOPT(std::string, BBSections)
 CGOPT(unsigned, TLSSize)
+CGOPT(unsigned, ScalableMatrixSizeBits)
 CGOPT_EXP(bool, EmulatedTLS)
 CGOPT(bool, UniqueSectionNames)
 CGOPT(bool, UniqueBasicBlockSectionNames)
@@ -400,6 +401,10 @@ codegen::RegisterCodeGenFlags::RegisterCodeGenFlags() {
       "tls-size", cl::desc("Bit size of immediate TLS offsets"), cl::init(0));
   CGBINDOPT(TLSSize);
 
+  static cl::opt<unsigned> ScalableMatrixSizeBits(
+      "scalable-matrix-specific-size-bits", cl::desc("Specify size of Scalable Matrix in bits"), cl::init(0));
+  CGBINDOPT(ScalableMatrixSizeBits);
+
   static cl::opt<bool> EmulatedTLS(
       "emulated-tls", cl::desc("Use emulated TLS model"), cl::init(false));
   CGBINDOPT(EmulatedTLS);
@@ -566,6 +571,7 @@ codegen::InitTargetOptionsFromCodeGenFlags(const Triple &TheTriple) {
   Options.UniqueSectionNames = getUniqueSectionNames();
   Options.UniqueBasicBlockSectionNames = getUniqueBasicBlockSectionNames();
   Options.TLSSize = getTLSSize();
+  Options.ScalableMatrixSizeBits = getScalableMatrixSizeBits();
   Options.EmulatedTLS =
       getExplicitEmulatedTLS().value_or(TheTriple.hasDefaultEmulatedTLS());
   Options.ExceptionModel = getExceptionModel();

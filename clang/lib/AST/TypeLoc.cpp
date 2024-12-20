@@ -392,6 +392,10 @@ TypeSpecifierType BuiltinTypeLoc::getWrittenTypeSpec() const {
   case BuiltinType::SatUShortFract:
   case BuiltinType::SatUFract:
   case BuiltinType::SatULongFract:
+#ifdef FP8_DATATYPES
+  case BuiltinType::BF8:
+  case BuiltinType::HF8:
+#endif
   case BuiltinType::BFloat16:
     llvm_unreachable("Builtin type needs extra local data!");
     // Fall through, if the impossible happens.
@@ -425,6 +429,10 @@ TypeSpecifierType BuiltinTypeLoc::getWrittenTypeSpec() const {
 #include "clang/Basic/PPCTypes.def"
 #define RVV_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
 #include "clang/Basic/RISCVVTypes.def"
+#ifdef SCALABLE_MATRIX
+#define SMAT_BASE(Name, Id, SingletonId) case BuiltinType::Id:
+#include "clang/Basic/ScalableMatrixTypes.def"
+#endif
 #define WASM_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
 #include "clang/Basic/WebAssemblyReferenceTypes.def"
   case BuiltinType::BuiltinFn:

@@ -1568,6 +1568,10 @@ ExprResult Parser::ParseCastExpression(CastParseKind ParseKind,
   case tok::kw_float:
   case tok::kw_double:
   case tok::kw___bf16:
+#ifdef FP8_DATATYPES
+  case tok::kw___bf8:
+  case tok::kw___hf8:
+#endif
   case tok::kw__Float16:
   case tok::kw___float128:
   case tok::kw___ibm128:

@@ -981,6 +981,23 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
     break;
   }
 
+#ifdef SCALABLE_MATRIX
+  case Type::ScalableMatrix: {
+    const auto *Mat1 = cast<ScalableMatrixType>(T1);
+    const auto *Mat2 = cast<ScalableMatrixType>(T2);
+    if (!IsStructurallyEquivalent(Context, Mat1->getElementType(),
+                                  Mat2->getElementType()))
+      return false;
+    if (Mat1->getNumRows() != Mat2->getNumRows())
+      return false;
+    if (Mat1->getNumColumns() != Mat2->getNumColumns())
+      return false;
+    if (Mat1->getScalable() != Mat2->getScalable())
+      return false;
+    break;
+  }
+#endif
+
   case Type::DependentSizedMatrix: {
     const DependentSizedMatrixType *Mat1 = cast<DependentSizedMatrixType>(T1);
     const DependentSizedMatrixType *Mat2 = cast<DependentSizedMatrixType>(T2);

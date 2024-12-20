@@ -6408,6 +6408,13 @@ bool UnnamedLocalNoLinkageFinder::VisitConstantMatrixType(
   return Visit(T->getElementType());
 }
 
+#ifdef SCALABLE_MATRIX
+bool UnnamedLocalNoLinkageFinder::VisitScalableMatrixType(
+    const ScalableMatrixType *T) {
+  return Visit(T->getElementType());
+}
+#endif
+
 bool UnnamedLocalNoLinkageFinder::VisitFunctionProtoType(
                                                   const FunctionProtoType* T) {
   for (const auto &A : T->param_types()) {

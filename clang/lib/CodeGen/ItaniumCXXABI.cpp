@@ -3362,6 +3362,10 @@ static bool TypeInfoIsInStandardLibrary(const BuiltinType *Ty) {
 #include "clang/Basic/PPCTypes.def"
 #define RVV_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
 #include "clang/Basic/RISCVVTypes.def"
+#ifdef SCALABLE_MATRIX
+#define SMAT_BASE(Name, Id, SingletonId) case BuiltinType::Id:
+#include "clang/Basic/ScalableMatrixTypes.def"
+#endif
 #define WASM_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
 #include "clang/Basic/WebAssemblyReferenceTypes.def"
     case BuiltinType::ShortAccum:
@@ -3388,6 +3392,10 @@ static bool TypeInfoIsInStandardLibrary(const BuiltinType *Ty) {
     case BuiltinType::SatUShortFract:
     case BuiltinType::SatUFract:
     case BuiltinType::SatULongFract:
+#ifdef FP8_DATATYPES
+    case BuiltinType::BF8:
+    case BuiltinType::HF8:
+#endif
     case BuiltinType::BFloat16:
       return false;
 
@@ -3589,6 +3597,9 @@ void ItaniumRTTIBuilder::BuildVTablePointer(const Type *Ty) {
   case Type::Vector:
   case Type::ExtVector:
   case Type::ConstantMatrix:
+#ifdef SCALABLE_MATRIX
+  case Type::ScalableMatrix:
+#endif
   case Type::Complex:
   case Type::Atomic:
   // FIXME: GCC treats block pointers as fundamental types?!
@@ -3844,6 +3855,9 @@ llvm::Constant *ItaniumRTTIBuilder::BuildTypeInfo(
   case Type::Vector:
   case Type::ExtVector:
   case Type::ConstantMatrix:
+#ifdef SCALABLE_MATRIX
+  case Type::ScalableMatrix:
+#endif
   case Type::Complex:
   case Type::BlockPointer:
     // Itanium C++ ABI 2.9.5p4:
