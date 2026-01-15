@@ -503,6 +503,47 @@ void RISCVRegisterInfo::lowerSegmentSpillReload(MachineBasicBlock::iterator II,
   II->eraseFromParent();
 }
 
+// Expand XAIFET mask load/store code-only pseudo-instructions
+//
+// These are not regular pseudo-instructions that assembly programmers would
+// use, but instructions generated only by the compiler during spill/refill.
+//
+// The reasons why these instructions are expanded here and not during any of
+// the two other expansing passes in RISCVExpandPseudoInst.cpp are that:
+//
+// - Require the allocation of a scratch GPR, which is a possibility no longer
+//   available during RISCVExpandPseudo.
+//
+// - Must happen during or after register allocation and not any earlier. The
+//   expasion can only happen once the mask spill/refill code is generated,
+//   discarding the suitability of RISCVPreRAExpandPseudo.
+static void expandXAIFETMaskLoadStore(MachineBasicBlock::iterator II, int SPAdj,
+                                      llvm::RegScavenger *RS, const RISCVInstrInfo *TII) {
+  static const bool RestoreAfter = true;
+  static const bool AllowSpill = true;
+  Register Scratch =
+      RS->scavengeRegisterBackwards(RISCV::GPRRegClass, II, RestoreAfter, SPAdj, AllowSpill);
+  assert(Scratch && "Failed to find scratch register");
+  Register M = II->getOperand(0).getReg();
+  DebugLoc DL = II->getDebugLoc();
+  MachineBasicBlock &MBB = *II->getParent();
+  if (II->getOpcode() == RISCV::AIF_StackML) {
+    BuildMI(MBB, II, DL, TII->get(RISCV::LB), Scratch)
+        .add(II->getOperand(1))
+        .add(II->getOperand(2))
+        .cloneMemRefs(*II);
+    TII->copyPhysReg(MBB, II, DL, M, Scratch, /*kill*/ true);
+  } else {
+    TII->copyPhysReg(MBB, II, DL, Scratch, M, II->getOperand(0).isKill());
+    BuildMI(MBB, II, DL, TII->get(RISCV::SB))
+        .addReg(Scratch, getKillRegState(true))
+        .add(II->getOperand(1))
+        .add(II->getOperand(2))
+        .cloneMemRefs(*II);
+  }
+  II->eraseFromParent();
+}
+
 bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
                                             int SPAdj, unsigned FIOperandNum,
                                             RegScavenger *RS) const {
@@ -619,6 +660,13 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   case RISCV::PseudoVRELOAD8_M1:
     lowerSegmentSpillReload(II, /*IsSpill=*/false);
     return true;
+  }
+
+  // XAIFET mask load/store code-only pseudo-instructions are expanded here
+  if (MI.getOpcode() == RISCV::AIF_StackML || MI.getOpcode() == RISCV::AIF_StackMS) {
+    const RISCVSubtarget &RVST = MF.getSubtarget<RISCVSubtarget>();
+    const RISCVInstrInfo *RVTII = RVST.getInstrInfo();
+    expandXAIFETMaskLoadStore(II, SPAdj, RS, RVTII);
   }
 
   return false;
@@ -1090,4 +1138,16 @@ RISCVRegisterInfo::findVRegWithEncoding(const TargetRegisterClass &RegClass,
   if (RISCVRI::getLMul(RegClass.TSFlags) == RISCVVType::LMUL_1)
     return Reg;
   return getMatchingSuperReg(Reg, RISCV::sub_vrm1_0, &RegClass);
+}
+
+
+bool RISCVRegisterInfo::requiresFrameIndexReplacementScavenging(
+    const MachineFunction &MF) const {
+  // Only for XAIFET, very conservatively assume that eliminateFrameIndex will
+  // require a register scavenger instance.
+  // The requested scavenger may be used by XAIFET for allocating a temporary
+  // GPR that serves as a scratch when loading or storing a mask register from
+  // the stack.
+  const RISCVSubtarget &STI = MF.getSubtarget<RISCVSubtarget>();
+  return STI.hasFeature(RISCV::FeatureVendorXAIFET);
 }

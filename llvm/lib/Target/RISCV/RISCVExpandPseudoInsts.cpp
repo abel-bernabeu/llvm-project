@@ -6,9 +6,14 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file contains a pass that expands pseudo instructions into target
-// instructions. This pass should be run after register allocation but before
-// the post-regalloc scheduling pass.
+// This file contains two passes that expands pseudo instructions into target
+// instructions at two different compilation stages:
+//
+// - RISCVExpandPseudo: This pass should be run after register allocation but
+//   before the post-regalloc scheduling pass.
+//
+// - RISCVPreRAExpandPseudo: This pass should run before register allocation
+//   because virtual registers are used in the expansion.
 //
 //===----------------------------------------------------------------------===//
 

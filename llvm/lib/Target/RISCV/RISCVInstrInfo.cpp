@@ -603,6 +603,22 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
     return;
   }
 
+  if (RISCV::FPR256RegClass.contains(DstReg, SrcReg)) {
+    assert(STI.hasFeature(RISCV::FeatureVendorXAIFET));
+    BuildMI(MBB, MBBI, DL, get(RISCV::AIF_FCMOVM_PS), DstReg)
+        .addReg(SrcReg, KillFlag)
+        .addReg(SrcReg, KillFlag);
+    return;
+  }
+
+  if (RISCV::MRRegClass.contains(DstReg, SrcReg)) {
+    assert(STI.hasFeature(RISCV::FeatureVendorXAIFET));
+    BuildMI(MBB, MBBI, DL, get(RISCV::AIF_MASKAND), DstReg)
+        .addReg(SrcReg, KillFlag)
+        .addReg(SrcReg, KillFlag);
+    return;
+  }
+
   if (RISCV::FPR32RegClass.contains(DstReg) &&
       RISCV::GPRRegClass.contains(SrcReg)) {
     BuildMI(MBB, MBBI, DL, get(RISCV::FMV_W_X), DstReg)
@@ -630,6 +646,32 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
     assert(STI.getXLen() == 64 && "Unexpected GPR size");
     BuildMI(MBB, MBBI, DL, get(RISCV::FMV_X_D), DstReg)
         .addReg(SrcReg, KillFlag);
+    return;
+  }
+
+  if (RISCV::GPRRegClass.contains(DstReg) &&
+      RISCV::MRRegClass.contains(SrcReg)) {
+    assert(STI.hasFeature(RISCV::FeatureVendorXAIFET));
+    BuildMI(MBB, MBBI, DL, get(RISCV::AIF_MOVA_X_M), DstReg);
+    if (SrcReg == RISCV::M0) {
+      unsigned Idx = SrcReg - RISCV::M0;
+      BuildMI(MBB, MBBI, DL, get(RISCV::SRLI), DstReg)
+          .addReg(DstReg)
+          .addImm(8 * Idx);
+    }
+    if (SrcReg != RISCV::M7)
+    BuildMI(MBB, MBBI, DL, get(RISCV::ANDI), DstReg)
+        .addReg(DstReg)
+        .addImm(0xff);
+    return;
+  }
+
+  if (RISCV::GPRRegClass.contains(SrcReg) &&
+      RISCV::MRRegClass.contains(DstReg)) {
+    assert(STI.hasFeature(RISCV::FeatureVendorXAIFET));
+    BuildMI(MBB, MBBI, DL, get(RISCV::AIF_MOV_M_X), DstReg)
+        .addReg(SrcReg, KillFlag)
+        .addImm(0);
     return;
   }
 
@@ -675,6 +717,12 @@ void RISCVInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
     Opcode = RISCV::FSW;
   } else if (RISCV::FPR64RegClass.hasSubClassEq(RC)) {
     Opcode = RISCV::FSD;
+  } else if (RISCV::FPR256RegClass.hasSubClassEq(RC))  {
+    assert(STI.hasFeature(RISCV::FeatureVendorXAIFET));
+    Opcode = RISCV::AIF_FSQ2;
+  } else if (RISCV::MRRegClass.hasSubClassEq(RC)) {
+    assert(STI.hasFeature(RISCV::FeatureVendorXAIFET));
+    Opcode = RISCV::AIF_StackMS;
   } else if (RISCV::VRRegClass.hasSubClassEq(RC)) {
     Opcode = RISCV::VS1R_V;
   } else if (RISCV::VRM2RegClass.hasSubClassEq(RC)) {
@@ -767,6 +815,12 @@ void RISCVInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
     Opcode = RISCV::FLW;
   } else if (RISCV::FPR64RegClass.hasSubClassEq(RC)) {
     Opcode = RISCV::FLD;
+  } else if (RISCV::FPR256RegClass.hasSubClassEq(RC)) {
+    assert(STI.hasFeature(RISCV::FeatureVendorXAIFET));
+    Opcode = RISCV::AIF_FLQ2;
+  } else if (RISCV::MRRegClass.hasSubClassEq(RC)) {
+    assert(STI.hasFeature(RISCV::FeatureVendorXAIFET));
+    Opcode = RISCV::AIF_StackML;
   } else if (RISCV::VRRegClass.hasSubClassEq(RC)) {
     Opcode = RISCV::VL1RE8_V;
   } else if (RISCV::VRM2RegClass.hasSubClassEq(RC)) {

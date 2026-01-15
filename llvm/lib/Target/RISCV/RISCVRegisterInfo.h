@@ -129,6 +129,8 @@ struct RISCVRegisterInfo : public RISCVGenRegisterInfo {
     return true;
   }
 
+  bool requiresFrameIndexReplacementScavenging(const MachineFunction &MF) const override;
+
   const TargetRegisterClass *
   getPointerRegClass(unsigned Kind = 0) const override {
     return &RISCV::GPRRegClass;
